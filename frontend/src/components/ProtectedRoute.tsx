@@ -1,12 +1,15 @@
-import { Navigate, useLocation } from "react-router-dom";
+// src/components/ProtectedRoute.tsx
+import { Navigate } from "react-router-dom";
 import { useAppSelector } from "../store";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthed = useAppSelector(s => s.auth.isAuthed);
-  const loc = useLocation();
 
-  if (isAuthed === null) return null; // SessionProvider već prikazuje splash
-  if (!isAuthed) return <Navigate to="/login" replace state={{ from: loc }} />;
-
+  if (isAuthed === null) {
+    return <div className="p-8 text-center text-sm text-gray-500">Loading…</div>;
+  }
+  if (!isAuthed) {
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }

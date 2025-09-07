@@ -81,27 +81,34 @@ export default function PlayerDashboard() {
     }
   };
 
-  const doPlay = async () => {
-    if (busy) return;
-    setStatus(null);
-    setBusy(true);
-    try {
-      const amount = Number(bet);
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Bet must be > 0");
-      const data = await playBet({ game, amountCents: toCents(amount), outcome });
-      setBalanceCents(data.balanceCents);
-      setStatus(
-        `Played ${GAMES[game].name}: ${outcome === "win" ? "WIN" : "LOSS"} — balance ${fromCents(
-          data.balanceCents
-        )}`
-      );
-    } catch (e: any) {
-      console.error(e);
-      setStatus(e?.response?.data?.message ?? e.message ?? "Play failed");
-    } finally {
-      setBusy(false);
-    }
-  };
+ // unutar PlayerDashboard.tsx
+const doPlay = async () => {
+  if (busy) return;
+  setStatus(null);
+  setBusy(true);
+  try {
+    const amount = Number(bet);
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Bet must be > 0");
+
+    const payload = {
+      gameCode: game as "slots" | "roulette" | "blackjack",
+      amountCents: String(Math.round(amount * 100)),      // ⬅ string
+      outcome: (outcome === "win" ? "WIN" : "LOSS") as "WIN" | "LOSS",
+    };
+
+    const data = await playBet(payload);
+    setBalanceCents(data.balanceCents);
+    setStatus(
+      `Played ${GAMES[game].name}: ${payload.outcome} — balance ${(Number(data.balanceCents)/100).toLocaleString(undefined,{style:"currency",currency:"USD"})}`
+    );
+  } catch (e: any) {
+    console.error(e);
+    setStatus(e?.response?.data?.message ?? e.message ?? "Play failed");
+  } finally {
+    setBusy(false);
+  }
+};
+
   
   return (
     <div className="space-y-6">

@@ -1,107 +1,93 @@
-import { useEffect, useMemo, useState } from "react";
-import dayjs from "dayjs";
-import { listTransactions, type Tx, type TxType, type Game } from "../../api/transactions";
+import { useEffect, useState } from "react";
+import { getMyTransactions, type Tx, type TxType, type GameKey } from "../../api/transactions";
 
-const TYPES: (TxType | "")[] = ["", "BET", "PAYOUT", "DEPOSIT", "WITHDRAWAL"];
-const GAMES: (Game | "")[] = ["", "slots", "roulette", "blackjack"];
+const fmtMoney = (c: string) =>
+  (Number(c) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
+const fmtDate = (iso: string) => new Date(iso).toLocaleString();
 
 export default function PlayerTransactions() {
   const [rows, setRows] = useState<Tx[]>([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
+  const [type, setType] = useState<TxType | undefined>(undefined);
+  const [game, setGame] = useState<GameKey | undefined>(undefined);
+  const [from, setFrom] = useState<string | undefined>(undefined);
+  const [to, setTo] = useState<string | undefined>(undefined);
   const [total, setTotal] = useState(0);
-  const [type, setType] = useState<"" | TxType>("");
-  const [game, setGame] = useState<"" | Game>("");
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const pages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
+  const load = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const data = await getMyTransactions({ page, limit, type, game, from, to });
+      setRows(data.items);
+      setTotal(data.total);
+    } catch (e: any) {
+      setErr(e?.response?.data?.message ?? e.message ?? "Failed to load transactions");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true); setErr(null);
-      try {
-        const data = await listTransactions({
-          page, limit,
-          type: type || undefined,
-          game: game || undefined,
-          from: from || undefined,
-          to: to || undefined,
-        });
-        setRows(data.items);
-        setTotal(data.total);
-      } catch (e: any) {
-        setErr(e?.response?.data?.message ?? "Failed to load transactions");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [page, limit, type, game, from, to]);
+  useEffect(() => { load(); }, [page, limit, type, game, from, to]);
 
-  const resetFilters = () => { setType(""); setGame(""); setFrom(""); setTo(""); setPage(1); };
+  const lastPage = Math.max(1, Math.ceil(total / limit));
 
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Transactions</h1>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow p-4 grid gap-3 md:grid-cols-5">
-        <select className="border rounded px-3 py-2" value={type} onChange={e=>{setType(e.target.value as any); setPage(1);}}>
-          {TYPES.map(t => <option key={t || "all"} value={t}>{t || "All types"}</option>)}
-        </select>
-        <select className="border rounded px-3 py-2" value={game} onChange={e=>{setGame(e.target.value as any); setPage(1);}}>
-          {GAMES.map(g => <option key={g || "all"} value={g}>{g || "All games"}</option>)}
-        </select>
-        <input type="date" className="border rounded px-3 py-2" value={from} onChange={e=>{setFrom(e.target.value); setPage(1);}} />
-        <input type="date" className="border rounded px-3 py-2" value={to} onChange={e=>{setTo(e.target.value); setPage(1);}} />
-        <button onClick={resetFilters} className="rounded bg-gray-900 text-white px-3 py-2">Reset</button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
+      {/* tabela */}
+      <div className="rounded-2xl border bg-white p-0 overflow-hidden">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-100">
+          <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="text-left px-4 py-2">Date</th>
-              <th className="text-left px-4 py-2">Type</th>
-              <th className="text-left px-4 py-2">Game</th>
-              <th className="text-right px-4 py-2">Amount</th>
-              <th className="text-right px-4 py-2">Balance After</th>
+              <th className="px-3 py-2 text-left">Date</th>
+              <th className="px-3 py-2 text-left">Type</th>
+              <th className="px-3 py-2 text-left">Game</th>
+              <th className="px-3 py-2 text-right">Amount</th>
+              <th className="px-3 py-2 text-right">Balance After</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-500">Loading…</td></tr>
-            ) : err ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-red-600">{err}</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-500">No data</td></tr>
-            ) : rows.map(r => (
+            {rows.map((r) => (
               <tr key={r.id} className="border-t">
-                <td className="px-4 py-2">{dayjs(r.createdAt).format("YYYY-MM-DD HH:mm")}</td>
-                <td className="px-4 py-2">{r.type}</td>
-                <td className="px-4 py-2">{r.game ?? "-"}</td>
-                <td className="px-4 py-2 text-right">
-                  {(Number(r.amountCents)/100).toLocaleString(undefined,{style:"currency",currency:"USD"})}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {(Number(r.balanceAfterCents)/100).toLocaleString(undefined,{style:"currency",currency:"USD"})}
-                </td>
+                <td className="px-3 py-2">{fmtDate(r.createdAt)}</td>
+                <td className="px-3 py-2">{r.type}</td>
+                <td className="px-3 py-2">{r.game ?? "-"}</td>
+                <td className="px-3 py-2 text-right">{fmtMoney(r.amountCents)}</td>
+                <td className="px-3 py-2 text-right">{fmtMoney(r.balanceAfterCents)}</td>
               </tr>
             ))}
+            {!loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                  {err ?? "No transactions."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-600">Page {page} / {pages}</span>
-        <div className="flex gap-2">
-          <button disabled={page<=1} onClick={()=>setPage(p=>p-1)} className="px-3 py-1.5 rounded border disabled:opacity-50">Prev</button>
-          <button disabled={page>=pages} onClick={()=>setPage(p=>p+1)} className="px-3 py-1.5 rounded border disabled:opacity-50">Next</button>
-        </div>
+      {/* paginator */}
+      <div className="flex justify-end gap-2">
+        <button
+          className="rounded border px-3 py-1 disabled:opacity-50"
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page <= 1 || loading}
+        >
+          Prev
+        </button>
+        <button
+          className="rounded border px-3 py-1 disabled:opacity-50"
+          onClick={() => setPage(p => (p < lastPage ? p + 1 : p))}
+          disabled={page >= lastPage || loading}
+        >
+          Next
+        </button>
       </div>
     </div>
   );

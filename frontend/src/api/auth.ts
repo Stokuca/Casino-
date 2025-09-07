@@ -6,12 +6,14 @@ export async function me(): Promise<{ role: Role; user: User }> {
   return data;
 }
 
-export async function login(body: { email: string; password: string; }): Promise<{ role: Role; user: User }> {
+export async function login(body: { email: string; password: string; }):
+  Promise<{ role: Role; user: User }> {
   const { data } = await api.post("/auth/login", body);
-  return data; // cookie setuje server
+  return data; // server postavlja cookies
 }
 
-export async function register(body: { email: string; password: string; }): Promise<{ role: Role; user: User }> {
+export async function register(body: { email: string; password: string; }):
+  Promise<{ role: Role; user: User }> {
   const { data } = await api.post("/auth/register", body);
   return data;
 }

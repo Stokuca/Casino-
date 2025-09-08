@@ -57,10 +57,17 @@ export default function OperatorDashboard() {
     [from, to]
   );
 
+  const paramsPlain = useMemo(() => ({
+    from: dayjs(from).format("YYYY-MM-DD"),
+    to: dayjs(to).format("YYYY-MM-DD"),
+  }), [from, to]);
+  
+  // 2) Revenue poziv – koristi plain, ostali ostaju ISO
   const seriesQ = useAbortable(
-    (signal) => revenue({ ...paramsIso, granularity: gran }, signal),
-    [gran, paramsIso.from, paramsIso.to]
+    (signal) => revenue({ ...paramsPlain, granularity: gran }, signal),
+    [gran, paramsPlain.from, paramsPlain.to]
   );
+  
   const byGameQ = useAbortable(
     (signal) => revenueByGame(paramsIso, signal),
     [paramsIso.from, paramsIso.to]
@@ -82,7 +89,7 @@ export default function OperatorDashboard() {
     [windowDays]
   );
 
-  const ggrTotalCents = (seriesQ.data ?? []).reduce((acc: number, p: any) => acc + Number(p.ggrCents ?? 0), 0);
+  const ggrTotalCents = Number((seriesQ.data as any)?.totalGgrCents ?? 0);
   const betsTotal = (byGameQ.data ?? []).reduce((acc: number, g: any) => acc + Number(g.bets ?? 0), 0);
 
   const avgBetCents = (() => {
@@ -94,8 +101,8 @@ export default function OperatorDashboard() {
 
   const activeCount = Number((activeQ.data as any)?.count ?? 0);
 
-  const series = (seriesQ.data ?? []).map((p: any) => ({
-    ts: new Date(p.date ?? p.ts ?? paramsIso.from).toLocaleDateString(),
+  const series = (((seriesQ.data as any)?.series ?? []) as Array<any>).map(p => ({
+    ts: new Date(p.bucketStart ?? p.date ?? paramsPlain.from).toLocaleDateString(),
     ggr: Number(p.ggrCents ?? 0) / 100,
   }));
   const pieData = (byGameQ.data ?? []).map((g: any) => ({

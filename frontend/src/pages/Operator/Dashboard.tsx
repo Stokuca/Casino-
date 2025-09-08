@@ -1,242 +1,198 @@
 import { useEffect, useMemo, useState } from "react";
-import { getBalance, deposit, withdraw } from "../../api/wallet";
-import { playBet } from "../../api/bets";
+import dayjs from "dayjs";
+import {
+  getKpi,
+  getRevenueSeries,
+  getRevenueByGame,
+  getTopProfitable,
+  getMostPopular,
+  type Granularity,
+  type RevenuePoint,
+  type RevenueByGame,
+  type TopGame,
+} from "../../api/operator";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from "recharts";
 
-type GameKey = "slots" | "roulette" | "blackjack";
+const fmtUSD = (cents: string | number) =>
+  (Number(cents) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-const GAMES: Record<GameKey, { name: string; rtp: number }> = {
-  slots: { name: "Slots", rtp: 96 },
-  roulette: { name: "Roulette", rtp: 97.3 },
-  blackjack: { name: "Blackjack", rtp: 99.2 },
-};
-
-const toCents = (v: number) => Math.round(v * 100);
-const fromCents = (cents: string | number) =>
-  (Number(cents) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
-
-export default function PlayerDashboard() {
-  const [balanceCents, setBalanceCents] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-
-  const [dep, setDep] = useState("100");
-  const [wd, setWd] = useState("50");
-
-  const [game, setGame] = useState<GameKey>("slots");
-  const [bet, setBet] = useState("10");
-  const [outcome, setOutcome] = useState<"win" | "loss">("win");
-  console.log("PlayerDashboard render");
-  const niceBalance = useMemo(
-    () => (balanceCents == null ? "—" : fromCents(balanceCents)),
-    [balanceCents]
-  );
+function useAbortable<T>(fn: (signal: AbortSignal) => Promise<T>, deps: any[]) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await getBalance();
-        setBalanceCents(data.balanceCents);
-      } catch (e: any) {
-        console.error(e);
-        setStatus(e?.response?.data?.message ?? "Failed to load balance");
-      }
-    })();
-  }, []);
+    const ctrl = new AbortController();
+    setLoading(true); setErr(null);
+    fn(ctrl.signal)
+      .then((d) => setData(d))
+      .catch((e: any) => {
+        if (e?.name === "CanceledError" || e?.code === "ERR_CANCELED" || e?.name === "AbortError") return;
+        setErr(e?.response?.data?.message ?? e.message ?? "Failed");
+      })
+      .finally(() => !ctrl.signal.aborted && setLoading(false));
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 
-  const doDeposit = async () => {
-    if (busy) return;
-    setStatus(null);
-    setBusy(true);
-    try {
-      const amount = Number(dep);
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be > 0");
-      const data = await deposit({ amountCents: toCents(amount) });
-      setBalanceCents(data.balanceCents);
-      setStatus(`Deposited ${fromCents(toCents(amount))}`);
-    } catch (e: any) {
-      console.error(e);
-      setStatus(e?.response?.data?.message ?? e.message ?? "Deposit failed");
-    } finally {
-      setBusy(false);
-    }
+  return { data, loading, err };
+}
+
+export default function OperatorDashboard() {
+  // Filter bar (last 7 days by default)
+  const [from, setFrom] = useState(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
+  const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
+  const [gran, setGran] = useState<Granularity>("day");
+
+  const params = useMemo(() => ({
+    from: dayjs(from).startOf("day").toISOString(),
+    to: dayjs(to).endOf("day").toISOString(),
+  }), [from, to]);
+
+  const kpiQ = useAbortable(
+    async (signal) => getKpi({ ...params }),
+    [params.from, params.to]
+  );
+  const seriesQ = useAbortable<RevenuePoint[]>(
+    async (signal) => getRevenueSeries({ granularity: gran, ...params }),
+    [gran, params.from, params.to]
+  );
+  const byGameQ = useAbortable<RevenueByGame[]>(
+    async (signal) => getRevenueByGame({ ...params }),
+    [params.from, params.to]
+  );
+  const topProfQ = useAbortable<TopGame[]>(
+    async (signal) => getTopProfitable({ ...params }),
+    [params.from, params.to]
+  );
+  const popularQ = useAbortable<TopGame[]>(
+    async (signal) => getMostPopular({ ...params }),
+    [params.from, params.to]
+  );
+
+  // Recharts expects numbers
+  const series = (seriesQ.data ?? []).map(p => ({ ts: new Date(p.ts).toLocaleDateString(), ggr: Number(p.ggrCents) / 100 }));
+  const pieData = (byGameQ.data ?? []).map(d => ({ name: d.game, value: Number(d.ggrCents) / 100 }));
+
+  const reset = () => {
+    setFrom(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
+    setTo(dayjs().format("YYYY-MM-DD"));
+    setGran("day");
   };
 
-  const doWithdraw = async () => {
-    if (busy) return;
-    setStatus(null);
-    setBusy(true);
-    try {
-      const amount = Number(wd);
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be > 0");
-      const data = await withdraw({ amountCents: toCents(amount) });
-      setBalanceCents(data.balanceCents);
-      setStatus(`Withdrawn ${fromCents(toCents(amount))}`);
-    } catch (e: any) {
-      console.error(e);
-      setStatus(e?.response?.data?.message ?? e.message ?? "Withdraw failed");
-    } finally {
-      setBusy(false);
-    }
-  };
+  const loadingAny = kpiQ.loading || seriesQ.loading || byGameQ.loading || topProfQ.loading || popularQ.loading;
 
-  const doPlay = async () => {
-    if (busy) return;
-    setStatus(null);
-    setBusy(true);
-    try {
-      const amount = Number(bet);
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Bet must be > 0");
-      const data = await playBet({ game, amountCents: toCents(amount), outcome });
-      setBalanceCents(data.balanceCents);
-      setStatus(
-        `Played ${GAMES[game].name}: ${outcome === "win" ? "WIN" : "LOSS"} — balance ${fromCents(
-          data.balanceCents
-        )}`
-      );
-    } catch (e: any) {
-      console.error(e);
-      setStatus(e?.response?.data?.message ?? e.message ?? "Play failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const [counter, setCounter] = useState(0); 
   return (
-    <div className="space-y-6">
-      {/* Balance */}
-      <button
-        type="button"
-        onClick={() => setCounter((x) => x + 1)}
-        className="rounded bg-blue-600 px-3 py-1 text-white"
-      >
-        Test click (+): {counter}
-      </button>
-      <section className="rounded-2xl border bg-white/60 p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">Current Balance</p>
-            <p className="mt-1 text-3xl font-semibold">{niceBalance}</p>
-          </div>
-          <span className="rounded-xl bg-gray-900 px-4 py-2 text-sm text-white">RTP weighted play</span>
-        </div>
-      </section>
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Operator Dashboard</h1>
 
-      {/* Wallet */}
-      <section className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Deposit</h3>
-          <p className="mb-4 text-sm text-gray-500">Add funds to your wallet.</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={1}
-              step="1"
-              value={dep}
-              onChange={(e) => setDep(e.target.value)}
-              className="w-40 rounded border px-3 py-2"
-            />
-            <button
-              type="button"
-              onClick={doDeposit}
-              disabled={busy}
-              className="rounded-xl bg-gray-900 px-4 py-2 text-white disabled:opacity-50"
-            >
-              {busy ? "Processing…" : "Deposit"}
-            </button>
-          </div>
-        </div>
+      {/* Filters */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <select className="border rounded-lg p-2" value={gran} onChange={(e) => setGran(e.target.value as Granularity)}>
+          <option value="day">Daily</option>
+          <option value="week">Weekly</option>
+          <option value="month">Monthly</option>
+        </select>
+        <input type="date" className="border rounded-lg p-2" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <input type="date" className="border rounded-lg p-2" value={to} onChange={(e) => setTo(e.target.value)} />
+        <button className="border rounded-lg p-2 hover:bg-gray-50" onClick={reset}>Reset</button>
+      </div>
 
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold">Withdraw</h3>
-          <p className="mb-4 text-sm text-gray-500">Withdraw winnings.</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={1}
-              step="1"
-              value={wd}
-              onChange={(e) => setWd(e.target.value)}
-              className="w-40 rounded border px-3 py-2"
-            />
-            <button
-              type="button"
-              onClick={doWithdraw}
-              disabled={busy}
-              className="rounded-xl bg-white px-4 py-2 text-gray-900 ring-1 ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {busy ? "Processing…" : "Withdraw"}
-            </button>
-          </div>
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="rounded-2xl border p-4 bg-white">
+          <div className="text-gray-500 text-sm">GGR</div>
+          <div className="text-xl font-semibold">{kpiQ.data ? fmtUSD(kpiQ.data.ggrCents) : (loadingAny ? "…" : "-")}</div>
         </div>
-      </section>
+        <div className="rounded-2xl border p-4 bg-white">
+          <div className="text-gray-500 text-sm">Bets</div>
+          <div className="text-xl font-semibold">{kpiQ.data ? kpiQ.data.bets : (loadingAny ? "…" : "-")}</div>
+        </div>
+        <div className="rounded-2xl border p-4 bg-white">
+          <div className="text-gray-500 text-sm">Active players</div>
+          <div className="text-xl font-semibold">{kpiQ.data ? kpiQ.data.activePlayers : (loadingAny ? "…" : "-")}</div>
+        </div>
+        <div className="rounded-2xl border p-4 bg-white">
+          <div className="text-gray-500 text-sm">Avg bet</div>
+          <div className="text-xl font-semibold">{kpiQ.data ? fmtUSD(kpiQ.data.avgBetCents) : (loadingAny ? "…" : "-")}</div>
+        </div>
+      </div>
 
-      {/* Betting */}
-      <section className="rounded-2xl border bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Betting Simulator</h3>
-          <div className="text-sm text-gray-500">
-            RTP for <span className="font-medium">{GAMES[game].name}</span>: {GAMES[game].rtp}%
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border p-4 bg-white">
+          <div className="mb-2 font-medium">Revenue by {gran}</div>
+          <div className="h-64">
+            <ResponsiveContainer>
+              <AreaChart data={series}>
+                <XAxis dataKey="ts" />
+                <YAxis tickFormatter={(v) => `$${v}`} />
+                <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
+                <Area type="monotone" dataKey="ggr" fillOpacity={0.3} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className="block text-sm">Game</label>
-            <select
-              value={game}
-              onChange={(e) => setGame(e.target.value as GameKey)}
-              className="mt-1 w-full rounded border px-3 py-2"
-            >
-              {Object.entries(GAMES).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm">Bet amount ($)</label>
-            <input
-              type="number"
-              min={1}
-              step="1"
-              value={bet}
-              onChange={(e) => setBet(e.target.value)}
-              className="mt-1 w-full rounded border px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm">Outcome</label>
-            <select
-              value={outcome}
-              onChange={(e) => setOutcome(e.target.value as "win" | "loss")}
-              className="mt-1 w-full rounded border px-3 py-2"
-            >
-              <option value="win">Simulate Win</option>
-              <option value="loss">Simulate Loss</option>
-            </select>
+        <div className="rounded-2xl border p-4 bg-white">
+          <div className="mb-2 font-medium">Revenue by game</div>
+          <div className="h-64">
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={100} label />
+                {/* Recharts boje default — ne postavljamo custom da ostanemo u guideline-u */}
+                {pieData.map((_, i) => <Cell key={i} />)}
+                <Legend />
+                <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
+      </div>
 
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={doPlay}
-            disabled={busy}
-            className="rounded-xl bg-gray-900 px-5 py-2 text-white disabled:opacity-50"
-          >
-            {busy ? "Playing…" : "PLAY"}
-          </button>
-        </div>
-      </section>
+      {/* Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TableGames title="Most profitable games" rows={topProfQ.data ?? []} loading={topProfQ.loading} />
+        <TableGames title="Most popular games" rows={popularQ.data ?? []} loading={popularQ.loading} />
+      </div>
+    </div>
+  );
+}
 
-      {status && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          {status}
-        </div>
-      )}
+function TableGames({ title, rows, loading }: { title: string; rows: TopGame[]; loading: boolean }) {
+  return (
+    <div className="rounded-2xl border bg-white overflow-hidden">
+      <div className="px-4 py-3 font-medium border-b">{title}</div>
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50 text-gray-600">
+          <tr>
+            <th className="px-3 py-2 text-left">Game</th>
+            <th className="px-3 py-2 text-right">GGR</th>
+            <th className="px-3 py-2 text-right"># Bets</th>
+            <th className="px-3 py-2 text-right">RTP (act/th)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading && <tr><td colSpan={4} className="px-3 py-6 text-center">Loading…</td></tr>}
+          {!loading && rows.map((g) => (
+            <tr key={g.game} className="border-t">
+              <td className="px-3 py-2">{g.game}</td>
+              <td className="px-3 py-2 text-right">{fmtUSD(g.ggrCents)}</td>
+              <td className="px-3 py-2 text-right">{g.bets}</td>
+              <td className="px-3 py-2 text-right">
+                {g.rtpActual != null && g.rtpTheoretical != null
+                  ? `${Math.round(g.rtpActual * 100)}% / ${Math.round(g.rtpTheoretical * 100)}%`
+                  : "-"}
+              </td>
+            </tr>
+          ))}
+          {!loading && rows.length === 0 && (
+            <tr><td colSpan={4} className="px-3 py-6 text-center text-gray-500">No data.</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

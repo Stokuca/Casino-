@@ -5,10 +5,10 @@ import { logout } from "../store/slices/authSlice";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
-  withCredentials: true, // šalje httpOnly cookies
+  withCredentials: true, // cookie auth
 });
 
-// NEMA localStorage, NEMA Authorization headera
+// NEMA Authorization headera – sve ide kroz httpOnly cookies
 
 let isRefreshing = false;
 let queue: Array<() => void> = [];
@@ -18,10 +18,18 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status !== 401) return Promise.reject(error);
-    if (original._retry) { store.dispatch(logout()); return Promise.reject(error); }
+    if (error.response?.status !== 401 || !original) {
+      return Promise.reject(error);
+    }
+
+    // spreči beskonačnu petlju
+    if (original._retry) {
+      store.dispatch(logout());
+      return Promise.reject(error);
+    }
     original._retry = true;
 
+    // single-flight refresh
     if (isRefreshing) {
       await new Promise<void>((resolve) => queue.push(resolve));
     } else {

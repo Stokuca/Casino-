@@ -1,23 +1,40 @@
 import { api } from "./http";
-import type { Role, User } from "../types/auth";
+import type { Session } from "../types/auth";
 
-export async function me(): Promise<{ role: Role; user: User }> {
-  const { data } = await api.get("/auth/me");
+/** Vrati trenutnu cookie sesiju (obe uloge) */
+export async function me(signal?: AbortSignal): Promise<Session> {
+  const { data } = await api.get("/auth/me", { signal });
   return data;
 }
 
-export async function login(body: { email: string; password: string; }):
-  Promise<{ role: Role; user: User }> {
-  const { data } = await api.post("/auth/login", body);
-  return data; // server postavlja cookies
-}
-
-export async function register(body: { email: string; password: string; }):
-  Promise<{ role: Role; user: User }> {
-  const { data } = await api.post("/auth/register", body);
+/** Player login: httpOnly cookies + { role, user } */
+export async function loginPlayer(
+  body: { email: string; password: string },
+  signal?: AbortSignal
+): Promise<Session> {
+  const { data } = await api.post("/auth/login", body, { signal });
   return data;
 }
 
-export async function logoutApi(): Promise<void> {
-  await api.post("/auth/logout");
+/** Operator login: takođe postavlja cookies + { role, user } */
+export async function loginOperator(
+  body: { email: string; password: string },
+  signal?: AbortSignal
+): Promise<Session> {
+  const { data } = await api.post("/operator/login", body, { signal });
+  return data;
+}
+
+/** Player register: cookies + { role, user } */
+export async function register(
+  body: { email: string; password: string },
+  signal?: AbortSignal
+): Promise<Session> {
+  const { data } = await api.post("/auth/register", body, { signal });
+  return data;
+}
+
+/** Logout: backend briše cookies */
+export async function logoutApi(signal?: AbortSignal): Promise<void> {
+  await api.post("/auth/logout", undefined, { signal });
 }

@@ -1,40 +1,99 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+// src/components/AppLayout.tsx
+import { Outlet, NavLink, Navigate, useNavigate } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../store";
 import { logout } from "../store/slices/authSlice";
 import { logoutApi } from "../api/auth";
 
+type NavItem = { to: string; label: string; end?: boolean };
+
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 export default function AppLayout() {
-  const role = useAppSelector(s => s.auth.role);
+  const { role, isAuthed } = useAppSelector((s) => s.auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const onLogout = async () => {
-    try { await logoutApi(); } catch {}
+  const onLogout = useCallback(async () => {
+    try { setLoggingOut(true); await logoutApi(); } catch {}
     dispatch(logout());
-    navigate("/login");
-  };
+    setLoggingOut(false);
+    navigate("/login", { replace: true });
+  }, [dispatch, navigate]);
+
+  if (isAuthed === null) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="flex items-center justify-between px-6 h-14 bg-white border-b">
+          <div className="font-semibold">Casino Platform</div>
+          <div className="text-sm text-gray-500">Loading…</div>
+        </header>
+        <main className="p-6" />
+      </div>
+    );
+  }
+  if (!isAuthed) return <Navigate to="/login" replace />;
+
+  const navItems: NavItem[] = useMemo(() => {
+    if (role === "player") {
+      return [
+        { to: "/player", label: "Dashboard", end: true },
+        { to: "/player/transactions", label: "Transactions" },
+      ];
+    }
+    if (role === "operator") {
+      return [
+        { to: "/operator", label: "Dashboard", end: true },
+        { to: "/operator/players", label: "Players" },
+      ];
+    }
+    return [];
+  }, [role]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between px-6 py-4 bg-white border-b">
-        <div className="font-semibold">Casino Platform</div>
-        <nav className="flex gap-4">
-          {role === "player" && (
-            <>
-              <NavLink to="/player" className="text-sm">Dashboard</NavLink>
-              <NavLink to="/player/transactions" className="text-sm">Transactions</NavLink>
-            </>
-          )}
-          {role === "operator" && (
-            <>
-              <NavLink to="/operator" className="text-sm">Dashboard</NavLink>
-              <NavLink to="/operator/players" className="text-sm">Players</NavLink>
-            </>
-          )}
+      <header className="flex items-center justify-between px-6 h-14 bg-white border-b">
+        <div
+          className="font-semibold cursor-pointer select-none"
+          onClick={() => navigate(role === "operator" ? "/operator" : "/player")}
+          aria-label="Go to home"
+        >
+          Casino Platform
+        </div>
+
+        <nav className="flex gap-6">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end ?? false}
+              className={({ isActive }) =>
+                cx(
+                  "text-sm transition-colors",
+                  isActive ? "text-gray-900 font-medium" : "text-gray-600 hover:text-gray-900"
+                )
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
-        <button onClick={onLogout} className="text-sm px-3 py-1 rounded bg-gray-900 text-white">Logout</button>
+
+        <button
+          onClick={onLogout}
+          disabled={loggingOut}
+          className={cx("text-sm px-3 py-1 rounded bg-gray-900 text-white", loggingOut && "opacity-60")}
+        >
+          {loggingOut ? "Logging out…" : "Logout"}
+        </button>
       </header>
-      <main className="p-6"><Outlet /></main>
+
+      <main className="p-6">
+        <Outlet />
+      </main>
     </div>
   );
 }

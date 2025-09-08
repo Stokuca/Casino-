@@ -1,22 +1,32 @@
-// src/api/wallet.ts
 import { api } from "./http";
 
-export type Balance = { balanceCents: string };
+export type Balance = { balanceCents: number };
 
-// Vrati trenutno stanje balansa
-export async function getBalance(): Promise<Balance> {
-  const { data } = await api.get<Balance>("/me/balance");
-  return data;
+/** $ -> cents string (pozitivan ceo broj) */
+const usdToCentsStr = (x: number | string) =>
+  String(Math.max(0, Math.floor((Number(x) || 0) * 100)));
+
+export async function getBalance(signal?: AbortSignal): Promise<Balance> {
+  try {
+    const { data } = await api.get<{ balanceCents?: string | number }>("/me/balance", { signal });
+    return { balanceCents: Number(data?.balanceCents ?? 0) };
+  } catch (e: any) {
+    if (e?.response?.status === 404) {
+      const { data } = await api.get<{ balanceCents?: string | number }>("/wallet/balance", { signal });
+      return { balanceCents: Number(data?.balanceCents ?? 0) };
+    }
+    throw e;
+  }
 }
 
-// Deposit (dodaje sredstva)
-// Backend očekuje { amountCents }
-export async function deposit(body: { amountCents: string }) {
-  const { data } = await api.post("/wallet/deposit", body);
-  return data;
-}
-export async function withdraw(body: { amountCents: string }) {
-  const { data } = await api.post("/wallet/withdraw", body);
-  return data;
+export async function deposit(amountUsd: number | string, signal?: AbortSignal) {
+  const body = { amountCents: usdToCentsStr(amountUsd) };  // ⬅️ *USD → cents*
+  const { data } = await api.post("/wallet/deposit", body, { signal });
+  return { balanceCents: Number(data?.balanceCents ?? 0) };
 }
 
+export async function withdraw(amountUsd: number | string, signal?: AbortSignal) {
+  const body = { amountCents: usdToCentsStr(amountUsd) };  // ⬅️ *USD → cents*
+  const { data } = await api.post("/wallet/withdraw", body, { signal });
+  return { balanceCents: Number(data?.balanceCents ?? 0) };
+}

@@ -10,12 +10,12 @@ const GAMES: Record<GameKey, { name: string; rtp: number }> = {
   blackjack: { name: "Blackjack", rtp: 99.2 },
 };
 
-const toCents = (v: number) => Math.round(v * 100);
-const fromCents = (cents: string | number) =>
+const fromCents = (cents: number | string) =>
   (Number(cents) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
 
 export default function PlayerDashboard() {
-  const [balanceCents, setBalanceCents] = useState<string | null>(null);
+  // ⬅ balanceCents je number (u centima)
+  const [balanceCents, setBalanceCents] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -24,8 +24,9 @@ export default function PlayerDashboard() {
 
   const [game, setGame] = useState<GameKey>("slots");
   const [bet, setBet] = useState("10");
+  // prikazno stanje, mapira se u "WIN" | "LOSS"
   const [outcome, setOutcome] = useState<"win" | "loss">("win");
-  console.log("PlayerDashboard render");
+
   const niceBalance = useMemo(
     () => (balanceCents == null ? "—" : fromCents(balanceCents)),
     [balanceCents]
@@ -35,7 +36,7 @@ export default function PlayerDashboard() {
     (async () => {
       try {
         const data = await getBalance();
-        setBalanceCents(data.balanceCents);
+        setBalanceCents(data.balanceCents); // number
       } catch (e: any) {
         console.error(e);
         setStatus(e?.response?.data?.message ?? "Failed to load balance");
@@ -50,10 +51,10 @@ export default function PlayerDashboard() {
     try {
       const amount = Number(dep);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be > 0");
-      const data = await deposit({ amountCents: toCents(amount).toString() });
+      const data = await deposit(amount); // ⬅ šaljemo $ (number)
 
       setBalanceCents(data.balanceCents);
-      setStatus(`Deposited ${fromCents(toCents(amount))}`);
+      setStatus(`Deposited ${fromCents(amount * 100)}`);
     } catch (e: any) {
       console.error(e);
       setStatus(e?.response?.data?.message ?? e.message ?? "Deposit failed");
@@ -69,10 +70,10 @@ export default function PlayerDashboard() {
     try {
       const amount = Number(wd);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be > 0");
-      const data = await deposit({ amountCents: toCents(amount).toString() });
+      const data = await withdraw(amount); // ⬅ ispravka: withdraw
 
       setBalanceCents(data.balanceCents);
-      setStatus(`Withdrawn ${fromCents(toCents(amount))}`);
+      setStatus(`Withdrawn ${fromCents(amount * 100)}`);
     } catch (e: any) {
       console.error(e);
       setStatus(e?.response?.data?.message ?? e.message ?? "Withdraw failed");
@@ -81,35 +82,35 @@ export default function PlayerDashboard() {
     }
   };
 
- // unutar PlayerDashboard.tsx
-const doPlay = async () => {
-  if (busy) return;
-  setStatus(null);
-  setBusy(true);
-  try {
-    const amount = Number(bet);
-    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Bet must be > 0");
+  const doPlay = async () => {
+    if (busy) return;
+    setStatus(null);
+    setBusy(true);
+    try {
+      const amount = Number(bet);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Bet must be > 0");
 
-    const payload = {
-      gameCode: game as "slots" | "roulette" | "blackjack",
-      amountCents: String(Math.round(amount * 100)),      // ⬅ string
-      outcome: (outcome === "win" ? "WIN" : "LOSS") as "WIN" | "LOSS",
-    };
+      // ⬅ playBet(gameCode, betUsd, outcome?)
+      const data = await playBet(
+        game,
+        amount,
+        outcome === "win" ? "WIN" : "LOSS"
+      );
 
-    const data = await playBet(payload);
-    setBalanceCents(data.balanceCents);
-    setStatus(
-      `Played ${GAMES[game].name}: ${payload.outcome} — balance ${(Number(data.balanceCents)/100).toLocaleString(undefined,{style:"currency",currency:"USD"})}`
-    );
-  } catch (e: any) {
-    console.error(e);
-    setStatus(e?.response?.data?.message ?? e.message ?? "Play failed");
-  } finally {
-    setBusy(false);
-  }
-};
+      setBalanceCents(data.balanceCents);
+      setStatus(
+        `Played ${GAMES[game].name}: ${outcome.toUpperCase()} — balance ${fromCents(
+          data.balanceCents
+        )}`
+      );
+    } catch (e: any) {
+      console.error(e);
+      setStatus(e?.response?.data?.message ?? e.message ?? "Play failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  
   return (
     <div className="space-y-6">
       {/* Balance */}

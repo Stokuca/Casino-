@@ -1,16 +1,16 @@
 // src/api/transactions.ts
 import { api } from "./http";
 
-export type TxType = "BET" | "DEPOSIT" | "WITHDRAW";
+export type TxType = "BET" | "PAYOUT" | "DEPOSIT" | "WITHDRAWAL";
 export type GameKey = "slots" | "roulette" | "blackjack";
 
 export type Tx = {
   id: string;
   type: TxType;
-  game?: GameKey | null;
-  amountCents: string;
-  balanceAfterCents: string;
-  createdAt: string; // ISO
+  game: GameKey | null;      // null za depozit/withdrawal
+  amountCents: string;       // u centima
+  balanceAfterCents: string; // u centima
+  createdAt: string;         // ISO
 };
 
 export type TxQuery = {
@@ -18,8 +18,8 @@ export type TxQuery = {
   limit?: number;
   type?: TxType;
   game?: GameKey;
-  from?: string; // yyyy-mm-dd ili ISO
-  to?: string;   // yyyy-mm-dd ili ISO
+  from?: string; // ISO (startOfDay)
+  to?: string;   // ISO (endOfDay)
 };
 
 export type TxResponse = {
@@ -29,8 +29,14 @@ export type TxResponse = {
   total: number;
 };
 
-export async function getMyTransactions(q: TxQuery): Promise<TxResponse> {
-  // ⬇️ prava ruta je /me/transactions
-  const { data } = await api.get<TxResponse>("/me/transactions", { params: q });
+export async function getMyTransactions(
+  q: TxQuery,
+  signal?: AbortSignal
+): Promise<TxResponse> {
+  const { data } = await api.get<TxResponse>("/me/transactions", {
+    params: q,
+    signal, // <- važno: prosleđujemo AbortController signal
+  });
   return data;
 }
+

@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import {
-  getKpi,
-  getRevenueSeries,
-  getRevenueByGame,
-  getTopProfitable,
-  getMostPopular,
+  revenue,
+  revenueByGame,
+  mostProfitable,
+  mostPopular,
+  avgBet,
+  activePlayers,
   type Granularity,
-  type RevenuePoint,
-  type RevenueByGame,
-  type TopGame,
 } from "../../api/operator";
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
 } from "recharts";
 
-const fmtUSD = (cents: string | number) =>
-  (Number(cents) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+const fmtUSD = (cents?: string | number | null) =>
+  (Number(cents ?? 0) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 function useAbortable<T>(fn: (signal: AbortSignal) => Promise<T>, deps: any[]) {
   const [data, setData] = useState<T | null>(null);
@@ -41,40 +40,68 @@ function useAbortable<T>(fn: (signal: AbortSignal) => Promise<T>, deps: any[]) {
 }
 
 export default function OperatorDashboard() {
-  // Filter bar (last 7 days by default)
+  // date-input drži 'YYYY-MM-DD'
   const [from, setFrom] = useState(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
   const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
   const [gran, setGran] = useState<Granularity>("day");
 
-  const params = useMemo(() => ({
+  // ⇣ Backend traži ISO8601 → pretvaramo u ISO kada šaljemo
+  const paramsIso = useMemo(() => ({
     from: dayjs(from).startOf("day").toISOString(),
     to: dayjs(to).endOf("day").toISOString(),
   }), [from, to]);
 
-  const kpiQ = useAbortable(
-    async (signal) => getKpi({ ...params }),
-    [params.from, params.to]
-  );
-  const seriesQ = useAbortable<RevenuePoint[]>(
-    async (signal) => getRevenueSeries({ granularity: gran, ...params }),
-    [gran, params.from, params.to]
-  );
-  const byGameQ = useAbortable<RevenueByGame[]>(
-    async (signal) => getRevenueByGame({ ...params }),
-    [params.from, params.to]
-  );
-  const topProfQ = useAbortable<TopGame[]>(
-    async (signal) => getTopProfitable({ ...params }),
-    [params.from, params.to]
-  );
-  const popularQ = useAbortable<TopGame[]>(
-    async (signal) => getMostPopular({ ...params }),
-    [params.from, params.to]
+  // active-players prima windowDays (broj dana)
+  const windowDays = useMemo(
+    () => Math.max(1, dayjs(to).diff(dayjs(from), "day") + 1),
+    [from, to]
   );
 
-  // Recharts expects numbers
-  const series = (seriesQ.data ?? []).map(p => ({ ts: new Date(p.ts).toLocaleDateString(), ggr: Number(p.ggrCents) / 100 }));
-  const pieData = (byGameQ.data ?? []).map(d => ({ name: d.game, value: Number(d.ggrCents) / 100 }));
+  const seriesQ = useAbortable(
+    (signal) => revenue({ ...paramsIso, granularity: gran }, signal),
+    [gran, paramsIso.from, paramsIso.to]
+  );
+  const byGameQ = useAbortable(
+    (signal) => revenueByGame(paramsIso, signal),
+    [paramsIso.from, paramsIso.to]
+  );
+  const profQ = useAbortable(
+    (signal) => mostProfitable(paramsIso, signal),
+    [paramsIso.from, paramsIso.to]
+  );
+  const popularQ = useAbortable(
+    (signal) => mostPopular(paramsIso, signal),
+    [paramsIso.from, paramsIso.to]
+  );
+  const avgBetQ = useAbortable(
+    (signal) => avgBet(paramsIso, signal),
+    [paramsIso.from, paramsIso.to]
+  );
+  const activeQ = useAbortable(
+    (signal) => activePlayers(windowDays, signal),
+    [windowDays]
+  );
+
+  const ggrTotalCents = (seriesQ.data ?? []).reduce((acc: number, p: any) => acc + Number(p.ggrCents ?? 0), 0);
+  const betsTotal = (byGameQ.data ?? []).reduce((acc: number, g: any) => acc + Number(g.bets ?? 0), 0);
+
+  const avgBetCents = (() => {
+    const d = avgBetQ.data as any;
+    if (!d) return 0;
+    if (Array.isArray(d)) return Number(d[0]?.avgBetCents ?? 0);
+    return Number(d?.avgBetCents ?? 0);
+  })();
+
+  const activeCount = Number((activeQ.data as any)?.count ?? 0);
+
+  const series = (seriesQ.data ?? []).map((p: any) => ({
+    ts: new Date(p.date ?? p.ts ?? paramsIso.from).toLocaleDateString(),
+    ggr: Number(p.ggrCents ?? 0) / 100,
+  }));
+  const pieData = (byGameQ.data ?? []).map((g: any) => ({
+    name: g.game,
+    value: Number(g.ggrCents ?? 0) / 100,
+  }));
 
   const reset = () => {
     setFrom(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
@@ -82,7 +109,8 @@ export default function OperatorDashboard() {
     setGran("day");
   };
 
-  const loadingAny = kpiQ.loading || seriesQ.loading || byGameQ.loading || topProfQ.loading || popularQ.loading;
+  const loadingAny =
+    seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading || avgBetQ.loading || activeQ.loading;
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -100,24 +128,12 @@ export default function OperatorDashboard() {
         <button className="border rounded-lg p-2 hover:bg-gray-50" onClick={reset}>Reset</button>
       </div>
 
-      {/* KPI cards */}
+      {/* KPI */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="rounded-2xl border p-4 bg-white">
-          <div className="text-gray-500 text-sm">GGR</div>
-          <div className="text-xl font-semibold">{kpiQ.data ? fmtUSD(kpiQ.data.ggrCents) : (loadingAny ? "…" : "-")}</div>
-        </div>
-        <div className="rounded-2xl border p-4 bg-white">
-          <div className="text-gray-500 text-sm">Bets</div>
-          <div className="text-xl font-semibold">{kpiQ.data ? kpiQ.data.bets : (loadingAny ? "…" : "-")}</div>
-        </div>
-        <div className="rounded-2xl border p-4 bg-white">
-          <div className="text-gray-500 text-sm">Active players</div>
-          <div className="text-xl font-semibold">{kpiQ.data ? kpiQ.data.activePlayers : (loadingAny ? "…" : "-")}</div>
-        </div>
-        <div className="rounded-2xl border p-4 bg-white">
-          <div className="text-gray-500 text-sm">Avg bet</div>
-          <div className="text-xl font-semibold">{kpiQ.data ? fmtUSD(kpiQ.data.avgBetCents) : (loadingAny ? "…" : "-")}</div>
-        </div>
+        <KpiCard label="GGR" value={fmtUSD(ggrTotalCents)} loading={loadingAny} />
+        <KpiCard label="Bets" value={betsTotal.toString()} loading={loadingAny} />
+        <KpiCard label="Active players" value={activeCount.toString()} loading={loadingAny} />
+        <KpiCard label="Avg bet" value={fmtUSD(avgBetCents)} loading={loadingAny} />
       </div>
 
       {/* Charts */}
@@ -142,8 +158,7 @@ export default function OperatorDashboard() {
             <ResponsiveContainer>
               <PieChart>
                 <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={100} label />
-                {/* Recharts boje default — ne postavljamo custom da ostanemo u guideline-u */}
-                {pieData.map((_, i) => <Cell key={i} />)}
+                {pieData.map((d, i) => <Cell key={`${d.name}-${i}`} />)}
                 <Legend />
                 <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
               </PieChart>
@@ -154,14 +169,31 @@ export default function OperatorDashboard() {
 
       {/* Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TableGames title="Most profitable games" rows={topProfQ.data ?? []} loading={topProfQ.loading} />
-        <TableGames title="Most popular games" rows={popularQ.data ?? []} loading={popularQ.loading} />
+        <GamesTable title="Most profitable games" rows={profQ.data ?? []} loading={profQ.loading} />
+        <GamesTable title="Most popular games" rows={popularQ.data ?? []} loading={popularQ.loading} />
       </div>
     </div>
   );
 }
 
-function TableGames({ title, rows, loading }: { title: string; rows: TopGame[]; loading: boolean }) {
+function KpiCard({ label, value, loading }: { label: string; value: string; loading: boolean }) {
+  return (
+    <div className="rounded-2xl border p-4 bg-white">
+      <div className="text-gray-500 text-sm">{label}</div>
+      <div className="text-xl font-semibold">{loading ? "…" : value}</div>
+    </div>
+  );
+}
+
+function GamesTable({
+  title,
+  rows,
+  loading,
+}: {
+  title: string;
+  rows: Array<{ game: string; ggrCents?: string; bets?: number; rtpActual?: number; rtpTheoretical?: number }>;
+  loading: boolean;
+}) {
   return (
     <div className="rounded-2xl border bg-white overflow-hidden">
       <div className="px-4 py-3 font-medium border-b">{title}</div>
@@ -176,11 +208,11 @@ function TableGames({ title, rows, loading }: { title: string; rows: TopGame[]; 
         </thead>
         <tbody>
           {loading && <tr><td colSpan={4} className="px-3 py-6 text-center">Loading…</td></tr>}
-          {!loading && rows.map((g) => (
-            <tr key={g.game} className="border-t">
+          {!loading && rows.map((g, i) => (
+            <tr key={`${g.game}-${i}`} className="border-t">
               <td className="px-3 py-2">{g.game}</td>
               <td className="px-3 py-2 text-right">{fmtUSD(g.ggrCents)}</td>
-              <td className="px-3 py-2 text-right">{g.bets}</td>
+              <td className="px-3 py-2 text-right">{g.bets ?? "-"}</td>
               <td className="px-3 py-2 text-right">
                 {g.rtpActual != null && g.rtpTheoretical != null
                   ? `${Math.round(g.rtpActual * 100)}% / ${Math.round(g.rtpTheoretical * 100)}%`

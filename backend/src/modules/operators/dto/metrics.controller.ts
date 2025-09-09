@@ -214,6 +214,38 @@ export class MetricsController {
     }));
   }
 
+    // ---------------------------------------------------------
+  // Active players (DISTINCT igrači sa BET u opsegu)
+  // ---------------------------------------------------------
+  @Get('active-players')
+  @ApiOperation({ summary: 'Active players in range (distinct players with BET)' })
+  @ApiOkResponse({ schema: { example: { count: 13 } } })
+  async activePlayersRange(@Query() q: RangeDto) {
+    const dto = plainToInstance(RangeDto, q);
+    const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    if (errors.length) throw new BadRequestException(errors);
+
+    const { fromDate, toDate } = parseDates(dto.from, dto.to);
+    const { count } = await this.metrics.activePlayers(fromDate, toDate);
+    return { count };
+  }
+
+  // ---------------------------------------------------------
+  // #Bets KPI (broj BET transakcija u opsegu)
+  // ---------------------------------------------------------
+  @Get('bets-count')
+  @ApiOperation({ summary: 'Total BET transactions count in range' })
+  @ApiOkResponse({ schema: { example: { bets: 217 } } })
+  async betsCount(@Query() q: RangeDto) {
+    const dto = plainToInstance(RangeDto, q);
+    const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    if (errors.length) throw new BadRequestException(errors);
+
+    const { fromDate, toDate } = parseDates(dto.from, dto.to);
+    const { bets } = await this.metrics.betsCount(fromDate, toDate);
+    return { bets };
+  }
+
   @Get('games/rtp')
   @ApiOperation({ summary: 'Actual vs theoretical RTP' })
   @ApiOkResponse({

@@ -7,6 +7,7 @@ import {
   mostPopular,
   avgBet,
   activePlayers,
+  betsCount,
   type Granularity,
 } from "../../api/operator";
 import {
@@ -95,12 +96,16 @@ export default function OperatorDashboard() {
     [paramsIso.from, paramsIso.to, tick]
   );
   const activeQ = useAbortable(
-    (signal) => activePlayers(windowDays, signal),
-    [windowDays, tick]
+    (signal) => activePlayers(paramsIso, signal),
+    [paramsIso.from, paramsIso.to, tick]
+  );
+  const betsQ = useAbortable(
+    (signal) => betsCount(paramsIso, signal),
+    [paramsIso.from, paramsIso.to, tick]
   );
 
   const ggrTotalCents = Number((seriesQ.data as any)?.totalGgrCents ?? 0);
-  const betsTotal = (popularQ.data ?? []).reduce((s: number, g: any) => s + Number(g.bets ?? 0), 0);
+  const betsTotal = Number((betsQ.data as any)?.count ?? 0);
 
   const avgBetCents = (() => {
     const d = avgBetQ.data as any;
@@ -126,7 +131,7 @@ export default function OperatorDashboard() {
   };
 
   const loadingAny =
-    seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading || avgBetQ.loading || activeQ.loading;
+  seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading || avgBetQ.loading || activeQ.loading || betsQ.loading;
     useEffect(() => { console.log('[WS] revenue:tick or metrics:changed -> tick=', tick); }, [tick]);
     useEffect(() => { console.log('revenue()', seriesQ.data); }, [seriesQ.data]);
     useEffect(() => { console.log('revenueByGame()', byGameQ.data); }, [byGameQ.data]);

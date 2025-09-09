@@ -129,6 +129,28 @@ return rows.map((r) => {
 
   }
 
+    // ---------------- Active players (DISTINCT playerId with BET) ----------------
+    async activePlayers(from?: Date, to?: Date) {
+      const qb = this.txRepo.createQueryBuilder('t')
+        .select('COUNT(DISTINCT t."playerId")', 'count')
+        .where(`t.type = 'BET'`);
+      applyRange(qb, from, to);
+  
+      const row = await qb.getRawOne<{ count: string }>();
+      return { count: Number(row?.count ?? 0) };
+    }
+  
+    // ---------------- #Bets KPI ----------------
+    async betsCount(from?: Date, to?: Date) {
+      const qb = this.txRepo.createQueryBuilder('t')
+        .select(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'bets');
+      applyRange(qb, from, to);
+  
+      const row = await qb.getRawOne<{ bets: string }>();
+      return { bets: Number(row?.bets ?? 0) };
+    }
+  
+
   // ---------------- Top profitable games (po GGR) ----------------
   async topProfitableGames(limit: number, from?: Date, to?: Date) {
     const qb = this.txRepo

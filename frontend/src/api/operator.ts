@@ -28,40 +28,28 @@ export async function revenue(
 ): Promise<RevenueResp> {
   const { from, to, granularity } = range;
 
-  // mapiraj UI -> backend enum
   const gran =
     granularity === "day" ? "daily" :
     granularity === "week" ? "weekly" : "monthly";
 
-  try {
-    const { data } = await api.get("/operator/metrics/revenue", {
-      params: { from, to, granularity: gran }, // ⬅️ samo ova 3
-      signal,
-    });
+  const { data } = await api.get("/operator/metrics/revenue", {
+    params: { from, to, granularity: gran },
+    signal,
+  });
 
-    const series = (Array.isArray(data?.series) ? data.series : []).map((r: any) => ({
-      date: String(r.bucketStart ?? r.date ?? from),
-      ggrCents: String(r.ggrCents ?? 0),
-    }));
+  const series = (Array.isArray(data?.series) ? data.series : []).map((r: any) => ({
+    date: String(r.bucketStart ?? r.date ?? from),
+    ggrCents: String(r.ggrCents ?? 0),
+  }));
 
-    return { totalGgrCents: String(data?.totalGgrCents ?? 0), series };
-  } catch (e: any) {
-    if (e?.code === "ERR_CANCELED" || e?.name === "CanceledError" || e?.name === "AbortError") {
-      throw e; // tiho ignorišemo u hooku
-    }
-    console.error("revenue error:", e?.response?.data || e);
-    throw e;
-  }
+  return { totalGgrCents: String(data?.totalGgrCents ?? 0), series };
 }
-
-
 
 export async function revenueByGame(range: Range, signal?: AbortSignal) {
   const { data } = await api.get("/operator/metrics/revenue-by-game", {
     params: range,
     signal,
   });
-  // backend: { gameCode, gameName, ggrCents, ... }
   return arr<any>(data).map((g) => ({
     game: String(g.gameName ?? g.gameCode ?? "-"),
     ggrCents: String(g.ggrCents ?? 0),
@@ -88,7 +76,7 @@ export async function mostPopular(range: Range, signal?: AbortSignal) {
   });
   return arr<any>(data).map((g) => ({
     game: String(g.gameName ?? g.gameCode ?? "-"),
-    ggrCents: String(g.ggrCents ?? 0), // može i da izostane – tabele to već hendluju
+    ggrCents: String(g.ggrCents ?? 0),
     bets: Number(g.betsCount ?? g.rounds ?? 0),
   })) as TopGameRow[];
 }
@@ -99,7 +87,6 @@ export async function avgBet(range: Range, signal?: AbortSignal) {
     signal,
   });
 
-  // backend vraća niz po igri; za KPI treba agregat
   if (Array.isArray(data)) {
     const cents = data.reduce((s, it: any) => s + Number(it?.avgBetCents ?? 0), 0);
     const avg = data.length ? Math.round(cents / data.length) : 0;
@@ -111,12 +98,20 @@ export async function avgBet(range: Range, signal?: AbortSignal) {
   return { avgBetCents: "0" };
 }
 
-/** Backend traži windowDays (ne from/to) */
-export async function activePlayers(windowDays: number, signal?: AbortSignal) {
-  const { data } = await api.get<{
-    windowDays?: number;
-    activePlayers?: number;
-    count?: number;
-  }>("/operator/metrics/active-players", { params: { windowDays }, signal });
-  return { count: Number(data?.count ?? data?.activePlayers ?? 0) };
+/** Active players za opseg (from/to) */
+export async function activePlayers(range: Range, signal?: AbortSignal) {
+  const { data } = await api.get("/operator/metrics/active-players", {
+    params: range,
+    signal,
+  });
+  return { count: Number((data as any)?.count ?? 0) };
+}
+
+/** #Bets KPI iz posebnog endpoint-a */
+export async function betsCount(range: Range, signal?: AbortSignal) {
+  const { data } = await api.get("/operator/metrics/bets-count", {
+    params: range,
+    signal,
+  });
+  return { count: Number((data as any)?.bets ?? (data as any)?.count ?? 0) };
 }

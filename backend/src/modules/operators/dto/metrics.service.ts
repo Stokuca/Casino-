@@ -5,21 +5,14 @@ import { ObjectLiteral, Repository, SelectQueryBuilder } from 'typeorm';
 import { Transaction } from '../../transactions/transaction.entity';
 import { Granularity } from './revenue.dto';
 
-// gore u fajlu:
-type PeriodRow = { period: Date; totalBet: string; totalPayout: string };
+type PeriodRow = { period: Date; totalBet: string | null; totalPayout: string | null };
 
 
 type GameAggRow = {
-  gameId: string;
-  gameCode: string;
-  gameName: string;
-  totalBet?: string;
-  totalPayout?: string;
-  ggr?: string;
-  rounds?: string;
-  avgBet?: string;
-  rtpPercent?: string;
-  rtpTheoretical?: string;
+  gameId: string; gameCode: string; gameName: string;
+  totalBet?: string; totalPayout?: string;
+  ggr?: string; rounds?: string; avgBet?: string;
+  rtpPercent?: string; rtpTheoretical?: string;
 };
 
 function dateTrunc(granularity: Granularity) {
@@ -52,82 +45,90 @@ export class MetricsService {
   ) {}
 
   // ---------------- Revenue by period ----------------
-  async revenueByPeriod(opts: { granularity: Granularity; from?: Date; to?: Date }) {
-    const { granularity, from, to } = opts;
-    const trunc = dateTrunc(granularity);
+  // ---------------- Revenue by period ----------------
+async revenueByPeriod(opts: { granularity: Granularity; from?: Date; to?: Date }) {
+  const { granularity, from, to } = opts;
+  const trunc = dateTrunc(granularity);
 
-    const qb = this.txRepo
-      .createQueryBuilder('t')
-      .select(`DATE_TRUNC('${trunc}', t."createdAt")`, 'period')
-      .addSelect(
-        `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
-        'totalBet',
-      )
-      .addSelect(
-        `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
-        'totalPayout',
-      )
-      .groupBy('period')
-      .orderBy('period', 'ASC');
+  const qb = this.txRepo
+    .createQueryBuilder('t')
+    .select(`DATE_TRUNC('${trunc}', t."createdAt")`, 'period')
+    .addSelect(
+      `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
+      'totalBet',
+    )
+    .addSelect(
+      `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
+      'totalPayout',
+    )
+    .groupBy('period')
+    .orderBy('period', 'ASC');
 
-    applyRange(qb, from, to);
+  applyRange(qb, from, to);
 
-    // u revenueByPeriod():
-const rows = await qb.getRawMany<PeriodRow>();
+  const rows = await qb.getRawMany<{ period: Date; totalBet: string | null; totalPayout: string | null }>();
 
-return rows.map((r) => {
-  const totalBet = Number(r.totalBet ?? 0);
-  const totalPayout = Number(r.totalPayout ?? 0);
-  return {
-    period: r.period,
-    totalBetCents: totalBet,
-    totalPayoutCents: totalPayout,
-    ggrCents: totalBet - totalPayout,
-  };
-});
+  return rows.map((r) => {
+    const bet = Number(r.totalBet ?? 0);
+    const payout = Number(r.totalPayout ?? 0);
+    return {
+      period: r.period,
+      totalBetCents: bet,
+      totalPayoutCents: payout,
+      ggrCents: bet - payout,
+    };
+  });
+}
 
-  }
 
   // ---------------- Revenue by game (pie) ----------------
-  async revenueByGame(opts: { from?: Date; to?: Date }) {
-    const { from, to } = opts;
+  // ---------------- Revenue by game (pie) ----------------
+async revenueByGame(opts: { from?: Date; to?: Date }) {
+  const { from, to } = opts;
 
-    const qb = this.txRepo
-      .createQueryBuilder('t')
-      .innerJoin('t.game', 'g')
-      .select('g.id', 'gameId')
-      .addSelect('g.code', 'gameCode')
-      .addSelect('g.name', 'gameName')
-      .addSelect(
-        `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
-        'totalBet',
-      )
-      .addSelect(
-        `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
-        'totalPayout',
-      )
-      .groupBy('g.id')
-      .addGroupBy('g.code')
-      .addGroupBy('g.name')
-      .orderBy('g.name', 'ASC');
+  const qb = this.txRepo
+    .createQueryBuilder('t')
+    .innerJoin('t.game', 'g')
+    .select('g.id', 'gameId')
+    .addSelect('g.code', 'gameCode')
+    .addSelect('g.name', 'gameName')
+    .addSelect(
+      `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
+      'totalBet',
+    )
+    .addSelect(
+      `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
+      'totalPayout',
+    )
+    .groupBy('g.id')
+    .addGroupBy('g.code')
+    .addGroupBy('g.name')
+    .orderBy('g.name', 'ASC');
 
-    applyRange(qb, from, to);
+  applyRange(qb, from, to);
 
-    const rows = await qb.getRawMany<GameAggRow>();
-return rows.map((r) => {
-  const totalBet = Number(r.totalBet ?? 0);
-  const totalPayout = Number(r.totalPayout ?? 0);
-  return {
-    gameId: r.gameId,
-    gameCode: r.gameCode,
-    gameName: r.gameName,
-    totalBetCents: totalBet,
-    totalPayoutCents: totalPayout,
-    ggrCents: totalBet - totalPayout,
-  };
-});
+  const rows = await qb.getRawMany<{
+    gameId: string;
+    gameCode: string;
+    gameName: string;
+    totalBet: string | null;
+    totalPayout: string | null;
+  }>();
 
-  }
+  return rows.map((r) => {
+    const bet = Number(r.totalBet ?? 0);
+    const payout = Number(r.totalPayout ?? 0);
+    return {
+      gameId: r.gameId,
+      gameCode: r.gameCode,
+      gameName: r.gameName,
+      totalBetCents: bet,
+      totalPayoutCents: payout,
+      ggrCents: bet - payout,
+    };
+  });
+}
+
 
     // ---------------- Active players (DISTINCT playerId with BET) ----------------
     async activePlayers(from?: Date, to?: Date) {

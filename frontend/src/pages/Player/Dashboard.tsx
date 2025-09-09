@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getBalance, deposit, withdraw } from "../../api/wallet";
 import { playBet } from "../../api/bets";
+import { onPlayerBalance, onPlayerTx } from "../../realtime";
 
 type GameKey = "slots" | "roulette" | "blackjack";
 
@@ -27,6 +28,15 @@ export default function PlayerDashboard() {
   // prikazno stanje, mapira se u "WIN" | "LOSS"
   const [outcome, setOutcome] = useState<"win" | "loss">("win");
 
+  useEffect(() => {
+    // već imaš inicijalni getBalance
+    const offBal = onPlayerBalance((cents) => setBalanceCents(cents));
+    const offTx = onPlayerTx((tx) => {
+      // čisto da vidiš u UI-u da je stiglo:
+      setStatus(`New ${tx?.type ?? "TX"}: ${new Date(tx?.createdAt ?? Date.now()).toLocaleTimeString()}`);
+    });
+    return () => { offBal(); offTx(); };
+  }, []);
   const niceBalance = useMemo(
     () => (balanceCents == null ? "—" : fromCents(balanceCents)),
     [balanceCents]

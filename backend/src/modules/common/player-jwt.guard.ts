@@ -32,7 +32,7 @@ export class PlayerJwtGuard implements CanActivate {
 
     try {
       const payload = await this.jwt.verifyAsync(token, {
-        secret: this.cfg.get<string>('JWT_PLAYER_SECRET')!,
+        secret: this.cfg.get<string>('JWT_SECRET')!,
       });
 
       if (payload.role !== 'player') {

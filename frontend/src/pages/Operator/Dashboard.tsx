@@ -13,6 +13,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { onMetricsChanged, onRevenueTick } from "../../realtime";
 
 const fmtUSD = (cents?: string | number | null) =>
   (Number(cents ?? 0) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -45,6 +46,15 @@ export default function OperatorDashboard() {
   const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
   const [gran, setGran] = useState<Granularity>("day");
 
+  const [tick, setTick] = useState(0);
+
+  // WS: svaki put kada server kaže da su se metrike promenile, refetch
+  useEffect(() => {
+    const off1 = onMetricsChanged(() => setTick((t) => t + 1));
+    // nije obavezno, ali lepo je videti da stiže i revenue “tick” tokom igre
+    const off2 = onRevenueTick(() => setTick((t) => t + 1));
+    return () => { off1(); off2(); };
+  }, []);
   // ⇣ Backend traži ISO8601 → pretvaramo u ISO kada šaljemo
   const paramsIso = useMemo(() => ({
     from: dayjs(from).startOf("day").toISOString(),
@@ -65,32 +75,32 @@ export default function OperatorDashboard() {
   // 2) Revenue poziv – koristi plain, ostali ostaju ISO
   const seriesQ = useAbortable(
     (signal) => revenue({ ...paramsPlain, granularity: gran }, signal),
-    [gran, paramsPlain.from, paramsPlain.to]
+    [gran, paramsPlain.from, paramsPlain.to, tick]
   );
   
   const byGameQ = useAbortable(
     (signal) => revenueByGame(paramsIso, signal),
-    [paramsIso.from, paramsIso.to]
+    [paramsIso.from, paramsIso.to, tick]
   );
   const profQ = useAbortable(
     (signal) => mostProfitable(paramsIso, signal),
-    [paramsIso.from, paramsIso.to]
+    [paramsIso.from, paramsIso.to, tick]
   );
   const popularQ = useAbortable(
     (signal) => mostPopular(paramsIso, signal),
-    [paramsIso.from, paramsIso.to]
+    [paramsIso.from, paramsIso.to, tick]
   );
   const avgBetQ = useAbortable(
     (signal) => avgBet(paramsIso, signal),
-    [paramsIso.from, paramsIso.to]
+    [paramsIso.from, paramsIso.to, tick]
   );
   const activeQ = useAbortable(
     (signal) => activePlayers(windowDays, signal),
-    [windowDays]
+    [windowDays, tick]
   );
 
   const ggrTotalCents = Number((seriesQ.data as any)?.totalGgrCents ?? 0);
-  const betsTotal = (byGameQ.data ?? []).reduce((acc: number, g: any) => acc + Number(g.bets ?? 0), 0);
+  const betsTotal = (popularQ.data ?? []).reduce((s: number, g: any) => s + Number(g.bets ?? 0), 0);
 
   const avgBetCents = (() => {
     const d = avgBetQ.data as any;
@@ -105,10 +115,9 @@ export default function OperatorDashboard() {
     ts: new Date(p.bucketStart ?? p.date ?? paramsPlain.from).toLocaleDateString(),
     ggr: Number(p.ggrCents ?? 0) / 100,
   }));
-  const pieData = (byGameQ.data ?? []).map((g: any) => ({
-    name: g.game,
-    value: Number(g.ggrCents ?? 0) / 100,
-  }));
+  const pieData = (byGameQ.data ?? [])
+  .map((g: any) => ({ name: g.game, value: Number(g.ggrCents ?? 0) / 100 }))
+  .filter((d) => d.value > 0);
 
   const reset = () => {
     setFrom(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
@@ -118,7 +127,12 @@ export default function OperatorDashboard() {
 
   const loadingAny =
     seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading || avgBetQ.loading || activeQ.loading;
-
+    useEffect(() => { console.log('[WS] revenue:tick or metrics:changed -> tick=', tick); }, [tick]);
+    useEffect(() => { console.log('revenue()', seriesQ.data); }, [seriesQ.data]);
+    useEffect(() => { console.log('revenueByGame()', byGameQ.data); }, [byGameQ.data]);
+    useEffect(() => { console.log('mostProfitable()', profQ.data); }, [profQ.data]);
+    useEffect(() => { console.log('mostPopular()', popularQ.data); }, [popularQ.data]);
+    useEffect(() => { console.log('avgBet()', avgBetQ.data); }, [avgBetQ.data]);
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Operator Dashboard</h1>

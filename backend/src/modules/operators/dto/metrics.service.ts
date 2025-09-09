@@ -152,55 +152,69 @@ return rows.map((r) => {
   
 
   // ---------------- Top profitable games (po GGR) ----------------
-  async topProfitableGames(limit: number, from?: Date, to?: Date) {
-    const qb = this.txRepo
-      .createQueryBuilder('t')
-      .innerJoin('t.game', 'g')
-      .select('g.id', 'gameId')
-      .addSelect('g.code', 'gameCode')
-      .addSelect('g.name', 'gameName')
-      .addSelect(
-        `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
-        'totalBet',
-      )
-      .addSelect(
-        `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
-        'totalPayout',
-      )
-      .addSelect(
-        `COUNT(*) FILTER (WHERE t.type = 'BET')`,
-        'rounds',                                // 👈 NOVO
-      )
-      .groupBy('g.id')
-      .addGroupBy('g.code')
-      .addGroupBy('g.name')
-      .orderBy(
-        `
-        SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)
-        -
-        SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)
-        `,
-        'DESC',
-      )
-      .limit(limit);
-  
-    applyRange(qb, from, to);
-  
-    const rows = await qb.getRawMany<GameAggRow>();
-    return rows.map((r) => {
-      const totalBet = Number(r.totalBet ?? 0);
-      const totalPayout = Number(r.totalPayout ?? 0);
-      return {
-        gameId: r.gameId,
-        gameCode: r.gameCode,
-        gameName: r.gameName,
-        totalBetCents: totalBet,
-        totalPayoutCents: totalPayout,
-        ggrCents: totalBet - totalPayout,
-        betsCount: Number((r as any).rounds ?? 0),  // 👈 NOVO
-      };
-    });
-  }
+ // ...ostatak importa/klase
+
+async topProfitableGames(limit: number, from?: Date, to?: Date) {
+  const qb = this.txRepo
+    .createQueryBuilder('t')
+    .innerJoin('t.game', 'g')
+    .select('g.id', 'gameId')
+    .addSelect('g.code', 'gameCode')
+    .addSelect('g.name', 'gameName')
+    // ukupni BET/PAYOUT u centima
+    .addSelect(
+      `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
+      'totalBet',
+    )
+    .addSelect(
+      `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
+      'totalPayout',
+    )
+    // ✅ broj BET transakcija (#Bets)
+    .addSelect(
+      `COUNT(*) FILTER (WHERE t.type = 'BET')`,
+      'betsCount',
+    )
+    .groupBy('g.id')
+    .addGroupBy('g.code')
+    .addGroupBy('g.name')
+    .orderBy(
+      `
+      SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)
+      -
+      SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)
+      `,
+      'DESC',
+    )
+    .limit(limit);
+
+  applyRange(qb, from, to);
+
+  const rows = await qb.getRawMany<{
+    gameId: string;
+    gameCode: string;
+    gameName: string;
+    totalBet: string;
+    totalPayout: string;
+    betsCount: string;
+  }>();
+
+  return rows.map((r) => {
+    const totalBet = Number(r.totalBet ?? 0);
+    const totalPayout = Number(r.totalPayout ?? 0);
+    return {
+      gameId: r.gameId,
+      gameCode: r.gameCode,
+      gameName: r.gameName,
+      totalBetCents: totalBet,
+      totalPayoutCents: totalPayout,
+      ggrCents: totalBet - totalPayout,
+      // ✅ prosleđujemo broj betova
+      betsCount: Number(r.betsCount ?? 0),
+    };
+  });
+}
+
   
 
   // ---------------- Most popular games (#BET) ----------------

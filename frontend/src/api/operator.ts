@@ -58,16 +58,15 @@ export async function revenueByGame(range: Range, signal?: AbortSignal) {
 }
 
 export async function mostProfitable(range: Range, signal?: AbortSignal) {
-  const { data } = await api.get("/operator/metrics/games/top-profitable", {
-    params: range,
-    signal,
-  });
+  const { data } = await api.get("/operator/metrics/games/top-profitable", { params: range, signal });
   return arr<any>(data).map((g) => ({
     game: String(g.gameName ?? g.gameCode ?? "-"),
     ggrCents: String(g.ggrCents ?? 0),
-    bets: Number(g.rounds ?? g.betsCount ?? 0) || undefined,
+    // ✅ pokupi betsCount koje sada vraća backend
+    bets: Number(g.betsCount ?? g.rounds ?? 0) || undefined,
   })) as TopGameRow[];
 }
+
 
 export async function mostPopular(range: Range, signal?: AbortSignal) {
   const { data } = await api.get("/operator/metrics/games/most-popular", {

@@ -127,35 +127,35 @@ export class MetricsController {
   // Games metrics
   // ---------------------------------------------------------
   @Get('games/top-profitable')
-  @ApiOperation({ summary: 'Top profitable games' })
-  @ApiOkResponse({
-    schema: {
-      example: [
-        { gameCode: 'slots', gameName: 'Slots', ggrCents: '65000', betsCount: 175 }, // 👈 primer
-      ],
-    },
-  })
-  async topProfitable(@Query() q: LimitRangeDto) {
-    const dto = plainToInstance(LimitRangeDto, q);
-    const errors = validateSync(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    if (errors.length) throw new BadRequestException(errors);
-  
-    const { fromDate, toDate } = parseDates(dto.from, dto.to);
-    const limit = dto.limit ?? 5;
-  
-    const rows = await this.metrics.topProfitableGames(limit, fromDate, toDate);
-    return rows.map((r) => ({
-      gameCode: r.gameCode,
-      gameName: r.gameName,
-      ggrCents: String(r.ggrCents ?? 0),
-      totalBetCents: String(r.totalBetCents ?? 0),
-      totalPayoutCents: String(r.totalPayoutCents ?? 0),
-      betsCount: Number(r.betsCount ?? 0),  // 👈 NOVO
-    }));
-  }
+@ApiOperation({ summary: 'Top profitable games' })
+@ApiOkResponse({
+  schema: {
+    example: [
+      { gameCode: 'slots', gameName: 'Slots', ggrCents: '65000', betsCount: 177 },
+      { gameCode: 'roulette', gameName: 'Roulette', ggrCents: '42000', betsCount: 63 },
+    ],
+  },
+})
+async topProfitable(@Query() q: LimitRangeDto) {
+  const dto = plainToInstance(LimitRangeDto, q);
+  const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+  if (errors.length) throw new BadRequestException(errors);
+
+  const { fromDate, toDate } = parseDates(dto.from, dto.to);
+  const limit = dto.limit ?? 5;
+
+  const rows = await this.metrics.topProfitableGames(limit, fromDate, toDate);
+  return rows.map((r) => ({
+    gameCode: r.gameCode,
+    gameName: r.gameName,
+    ggrCents: String(r.ggrCents ?? 0),
+    totalBetCents: String(r.totalBetCents ?? 0),
+    totalPayoutCents: String(r.totalPayoutCents ?? 0),
+    // ✅ novo polje
+    betsCount: Number((r as any).betsCount ?? 0),
+  }));
+}
+
   
 
   @Get('games/most-popular')

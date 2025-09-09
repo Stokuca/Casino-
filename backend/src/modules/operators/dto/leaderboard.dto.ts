@@ -1,8 +1,10 @@
+// backend/src/modules/operators/dto/leaderboard.dto.ts
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { RangeDto } from './metrics-queries.dto';
 
-export class LeaderboardDto {
+export class LeaderboardDto extends RangeDto {
   @ApiPropertyOptional({ example: 10, minimum: 1, maximum: 100 })
   @IsOptional()
   @Transform(({ value }) => Number(value))

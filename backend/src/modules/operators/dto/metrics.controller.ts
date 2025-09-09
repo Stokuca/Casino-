@@ -214,7 +214,7 @@ export class MetricsController {
     }));
   }
 
-    // ---------------------------------------------------------
+  // ---------------------------------------------------------
   // Active players (DISTINCT igrači sa BET u opsegu)
   // ---------------------------------------------------------
   @Get('active-players')
@@ -235,7 +235,7 @@ export class MetricsController {
   // ---------------------------------------------------------
   @Get('bets-count')
   @ApiOperation({ summary: 'Total BET transactions count in range' })
-  @ApiOkResponse({ schema: { example: { bets: 217 } } })
+  @ApiOkResponse({ schema: { example: { count: 217 } } })
   async betsCount(@Query() q: RangeDto) {
     const dto = plainToInstance(RangeDto, q);
     const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
@@ -243,7 +243,7 @@ export class MetricsController {
 
     const { fromDate, toDate } = parseDates(dto.from, dto.to);
     const { bets } = await this.metrics.betsCount(fromDate, toDate);
-    return { bets };
+    return { count: bets }; // ⬅ frontend očekuje { count }
   }
 
   @Get('games/rtp')

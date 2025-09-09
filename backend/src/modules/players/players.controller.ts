@@ -18,12 +18,16 @@ export class PlayersController {
   @Get('balance')
   @ApiOperation({ summary: 'Get current balance' })
   @ApiOkResponse({
-    schema: { example: { balanceCents: '101500', balance: 1015 } }
+    schema: { example: { balanceCents: '101500', balance: 1015 } },
   })
   async balance(@Req() req: any) {
-    const playerId = req.user.sub as string;
+    const playerId = String(req.user?.sub);
     const player = await this.playersRepo.findOneByOrFail({ id: playerId });
-    const cents = BigInt(player.balanceCents);
-    return { balanceCents: cents.toString(), balance: Number(cents) / 100 };
+
+    const cents = BigInt(player.balanceCents); // čuvamo preciznost
+    return {
+      balanceCents: cents.toString(),
+      balance: Number(cents) / 100, // u $ za prikaz
+    };
   }
 }

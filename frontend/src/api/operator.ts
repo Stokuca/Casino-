@@ -115,3 +115,17 @@ export async function betsCount(range: Range, signal?: AbortSignal) {
   });
   return { count: Number((data as any)?.bets ?? (data as any)?.count ?? 0) };
 }
+export type RtpRow = { game: string; rtpActual: number; rtpTheoretical: number };
+
+export async function rtpPerGame(range: Range, signal?: AbortSignal): Promise<RtpRow[]> {
+  const { data } = await api.get("/operator/metrics/games/rtp", {
+    params: range,
+    signal,
+  });
+  // backend: { gameCode, gameName, actualRtpPct, theoreticalRtpPct }
+  return (Array.isArray(data) ? data : []).map((g: any) => ({
+    game: String(g.gameName ?? g.gameCode ?? "-"),
+    rtpActual: Number(g.actualRtpPct ?? 0),        // već u %
+    rtpTheoretical: Number(g.theoreticalRtpPct ?? 0), // već u %
+  }));
+}

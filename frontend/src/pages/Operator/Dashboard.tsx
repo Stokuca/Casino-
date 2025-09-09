@@ -8,6 +8,7 @@ import {
   avgBet,
   activePlayers,
   betsCount,
+  rtpPerGame,
   type Granularity,
 } from "../../api/operator";
 import {
@@ -52,58 +53,63 @@ export default function OperatorDashboard() {
   // WS: svaki put kada server kaže da su se metrike promenile, refetch
   useEffect(() => {
     const off1 = onMetricsChanged(() => setTick((t) => t + 1));
-    // nije obavezno, ali lepo je videti da stiže i revenue “tick” tokom igre
     const off2 = onRevenueTick(() => setTick((t) => t + 1));
     return () => { off1(); off2(); };
   }, []);
-  // ⇣ Backend traži ISO8601 → pretvaramo u ISO kada šaljemo
+
+  // Backend: većina endpointa traži ISO, revenue plain YYYY-MM-DD
   const paramsIso = useMemo(() => ({
     from: dayjs(from).startOf("day").toISOString(),
     to: dayjs(to).endOf("day").toISOString(),
   }), [from, to]);
 
-  // active-players prima windowDays (broj dana)
-  const windowDays = useMemo(
-    () => Math.max(1, dayjs(to).diff(dayjs(from), "day") + 1),
-    [from, to]
-  );
-
   const paramsPlain = useMemo(() => ({
     from: dayjs(from).format("YYYY-MM-DD"),
     to: dayjs(to).format("YYYY-MM-DD"),
   }), [from, to]);
-  
-  // 2) Revenue poziv – koristi plain, ostali ostaju ISO
+
+  // ----- Queries -----
   const seriesQ = useAbortable(
     (signal) => revenue({ ...paramsPlain, granularity: gran }, signal),
     [gran, paramsPlain.from, paramsPlain.to, tick]
   );
-  
+
   const byGameQ = useAbortable(
     (signal) => revenueByGame(paramsIso, signal),
     [paramsIso.from, paramsIso.to, tick]
   );
+
   const profQ = useAbortable(
     (signal) => mostProfitable(paramsIso, signal),
     [paramsIso.from, paramsIso.to, tick]
   );
+
   const popularQ = useAbortable(
     (signal) => mostPopular(paramsIso, signal),
     [paramsIso.from, paramsIso.to, tick]
   );
+
   const avgBetQ = useAbortable(
     (signal) => avgBet(paramsIso, signal),
     [paramsIso.from, paramsIso.to, tick]
   );
+
   const activeQ = useAbortable(
     (signal) => activePlayers(paramsIso, signal),
     [paramsIso.from, paramsIso.to, tick]
   );
+
+  const rtpQ = useAbortable(
+    (signal) => rtpPerGame(paramsIso, signal),
+    [paramsIso.from, paramsIso.to, tick]
+  );
+
   const betsQ = useAbortable(
     (signal) => betsCount(paramsIso, signal),
     [paramsIso.from, paramsIso.to, tick]
   );
 
+  // ----- Derivati za KPI i prikaz -----
   const ggrTotalCents = Number((seriesQ.data as any)?.totalGgrCents ?? 0);
   const betsTotal = Number((betsQ.data as any)?.count ?? 0);
 
@@ -120,9 +126,35 @@ export default function OperatorDashboard() {
     ts: new Date(p.bucketStart ?? p.date ?? paramsPlain.from).toLocaleDateString(),
     ggr: Number(p.ggrCents ?? 0) / 100,
   }));
+
   const pieData = (byGameQ.data ?? [])
-  .map((g: any) => ({ name: g.game, value: Number(g.ggrCents ?? 0) / 100 }))
-  .filter((d) => d.value > 0);
+    .map((g: any) => ({ name: g.game, value: Number(g.ggrCents ?? 0) / 100 }))
+    .filter((d) => d.value > 0);
+
+  // --- RTP mapiranje i spajanje sa tabelama ---
+  const rtpMap = useMemo(() => {
+    const m = new Map<string, { act: number; th: number }>();
+    for (const r of (rtpQ.data ?? [])) {
+      m.set(r.game, { act: r.rtpActual, th: r.rtpTheoretical });
+    }
+    return m;
+  }, [rtpQ.data]);
+
+  const profRows = useMemo(() => {
+    return (profQ.data ?? []).map((r: any) => ({
+      ...r,
+      rtpActual: rtpMap.get(r.game)?.act,
+      rtpTheoretical: rtpMap.get(r.game)?.th,
+    }));
+  }, [profQ.data, rtpMap]);
+
+  const popularRows = useMemo(() => {
+    return (popularQ.data ?? []).map((r: any) => ({
+      ...r,
+      rtpActual: rtpMap.get(r.game)?.act,
+      rtpTheoretical: rtpMap.get(r.game)?.th,
+    }));
+  }, [popularQ.data, rtpMap]);
 
   const reset = () => {
     setFrom(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
@@ -131,13 +163,18 @@ export default function OperatorDashboard() {
   };
 
   const loadingAny =
-  seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading || avgBetQ.loading || activeQ.loading || betsQ.loading;
-    useEffect(() => { console.log('[WS] revenue:tick or metrics:changed -> tick=', tick); }, [tick]);
-    useEffect(() => { console.log('revenue()', seriesQ.data); }, [seriesQ.data]);
-    useEffect(() => { console.log('revenueByGame()', byGameQ.data); }, [byGameQ.data]);
-    useEffect(() => { console.log('mostProfitable()', profQ.data); }, [profQ.data]);
-    useEffect(() => { console.log('mostPopular()', popularQ.data); }, [popularQ.data]);
-    useEffect(() => { console.log('avgBet()', avgBetQ.data); }, [avgBetQ.data]);
+    seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading ||
+    avgBetQ.loading || activeQ.loading || betsQ.loading || rtpQ.loading;
+
+  // debug logovi (po želji)
+  useEffect(() => { console.log('[WS] revenue:tick or metrics:changed -> tick=', tick); }, [tick]);
+  useEffect(() => { console.log('revenue()', seriesQ.data); }, [seriesQ.data]);
+  useEffect(() => { console.log('revenueByGame()', byGameQ.data); }, [byGameQ.data]);
+  useEffect(() => { console.log('mostProfitable()', profQ.data); }, [profQ.data]);
+  useEffect(() => { console.log('mostPopular()', popularQ.data); }, [popularQ.data]);
+  useEffect(() => { console.log('avgBet()', avgBetQ.data); }, [avgBetQ.data]);
+  useEffect(() => { console.log('rtpPerGame()', rtpQ.data); }, [rtpQ.data]);
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Operator Dashboard</h1>
@@ -167,19 +204,17 @@ export default function OperatorDashboard() {
         <div className="rounded-2xl border p-4 bg-white">
           <div className="mb-2 font-medium">Revenue by {gran}</div>
           <div className="h-64">
-          <ResponsiveContainer>
-            <AreaChart data={series}>
-              <XAxis dataKey="ts" />
-              {/* OVO zameni */}
-              <YAxis
-                domain={['dataMin', 'dataMax']}   // da podrži i negativne vrednosti
-                tickFormatter={(v) => `$${v}`}
-              />
-              <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
-              <Area type="monotone" dataKey="ggr" fillOpacity={0.3} />
-            </AreaChart>
-          </ResponsiveContainer>
-
+            <ResponsiveContainer>
+              <AreaChart data={series}>
+                <XAxis dataKey="ts" />
+                <YAxis
+                  domain={['dataMin', 'dataMax']}
+                  tickFormatter={(v) => `$${v}`}
+                />
+                <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
+                <Area type="monotone" dataKey="ggr" fillOpacity={0.3} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -200,8 +235,8 @@ export default function OperatorDashboard() {
 
       {/* Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GamesTable title="Most profitable games" rows={profQ.data ?? []} loading={profQ.loading} />
-        <GamesTable title="Most popular games" rows={popularQ.data ?? []} loading={popularQ.loading} />
+        <GamesTable title="Most profitable games" rows={profRows} loading={profQ.loading || rtpQ.loading} />
+        <GamesTable title="Most popular games" rows={popularRows} loading={popularQ.loading || rtpQ.loading} />
       </div>
     </div>
   );
@@ -246,7 +281,7 @@ function GamesTable({
               <td className="px-3 py-2 text-right">{g.bets ?? "-"}</td>
               <td className="px-3 py-2 text-right">
                 {g.rtpActual != null && g.rtpTheoretical != null
-                  ? `${Math.round(g.rtpActual * 100)}% / ${Math.round(g.rtpTheoretical * 100)}%`
+                  ? `${Number(g.rtpActual).toFixed(1)}% / ${Number(g.rtpTheoretical).toFixed(1)}%`
                   : "-"}
               </td>
             </tr>

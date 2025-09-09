@@ -29,14 +29,31 @@ export default function PlayerDashboard() {
   const [outcome, setOutcome] = useState<"win" | "loss">("win");
 
   useEffect(() => {
-    // već imaš inicijalni getBalance
     const offBal = onPlayerBalance((cents) => setBalanceCents(cents));
+  
+    // WS: IGNORIŠEMO BET i PAYOUT da ne prelepe poruku posle playBet-a
     const offTx = onPlayerTx((tx) => {
-      // čisto da vidiš u UI-u da je stiglo:
-      setStatus(`New ${tx?.type ?? "TX"}: ${new Date(tx?.createdAt ?? Date.now()).toLocaleTimeString()}`);
+      const type = (tx as any)?.type as string | undefined;
+      if (type === "BET" || type === "PAYOUT") return;
+  
+      const amount = Number((tx as any)?.amountCents ?? 0);
+      const signed = type === "WITHDRAW" ? -amount : amount; // deposit +, withdraw -
+      const nice = (signed / 100).toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+      });
+  
+      setStatus(`New ${type ?? "TX"}: ${nice}`);
     });
+  
     return () => { offBal(); offTx(); };
   }, []);
+  
+  
+  
+  
+  
+
   const niceBalance = useMemo(
     () => (balanceCents == null ? "—" : fromCents(balanceCents)),
     [balanceCents]

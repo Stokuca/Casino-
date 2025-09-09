@@ -30,8 +30,11 @@ export class OperatorsPlayersController {
   async leaderboard(@Query() q: LeaderboardDto) {
     const dto = plainToInstance(LeaderboardDto, q);
     await validateOrReject(dto);
-    return this.svc.leaderboard(dto); // << servis vraća UI-friendly niz
+    // servis sada već vraća tačno ono što front očekuje
+    return this.svc.leaderboard(dto);
   }
+  
+  
   
   
 

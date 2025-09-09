@@ -129,3 +129,16 @@ export async function rtpPerGame(range: Range, signal?: AbortSignal): Promise<Rt
     rtpTheoretical: Number(g.theoreticalRtpPct ?? 0), // već u %
   }));
 }
+
+export async function topPlayers(range: Range, limit = 10, signal?: AbortSignal) {
+  const { data } = await api.get("/operator/players/leaderboard", {
+    params: { ...range, limit },
+    signal,
+  });
+  return (Array.isArray(data) ? data : []).map((r: any) => ({
+    email: String(r.email ?? "-"),
+    // backend sada šalje totalGgrCents, ali podrži i ggrCents za svaki slučaj:
+    ggrCents: String(r.totalGgrCents ?? r.ggrCents ?? 0),
+    bets: Number(r.betsCount ?? r.bets ?? 0),
+  }));
+}

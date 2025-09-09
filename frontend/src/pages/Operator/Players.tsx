@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { api } from "../../api/http";
+import { topPlayers } from "../../api/operator"; // ⬅️ NOVO
 
 const fmtUSD = (c?: string | number | null) =>
   (Number(c ?? 0) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -10,8 +11,8 @@ type PlayerRow = {
   email?: string;
   balanceCents?: string;
   totalGgrCents?: string;
-  bets?: number;
-  lastActive?: string; // ISO
+  bets?: number;          // ⬅️ UI-friendly
+  lastActive?: string;    // ISO
 };
 
 type PageResp<T> = { items: T[]; page: number; limit: number; total: number };
@@ -25,18 +26,34 @@ export default function OperatorPlayers() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const [leader, setLeader] = useState<Array<{ id?: string; email?: string; ggrCents?: string; bets?: number }>>([]);
+  const [leader, setLeader] = useState<Array<{ email: string; ggrCents: string; bets: number }>>([]);
   const [ldrErr, setLdrErr] = useState<string | null>(null);
 
-  const params = useMemo(() => ({ page, limit, ...(q && { q }) }), [page, limit, q]);
+  // ako želiš opseg, uzmi poslednjih 30 dana
+  const toIso = useMemo(() => dayjs().endOf("day").toISOString(), []);
+  const fromIso = useMemo(() => dayjs().subtract(30, "day").startOf("day").toISOString(), []);
 
+  // ⬇️ ispravan parametar za search je "search", ne "q"
+  const params = useMemo(() => ({ page, limit, ...(q && { search: q }) }), [page, limit, q]);
+
+  // ---- Players table
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
       setLoading(true); setErr(null);
       try {
-        const { data } = await api.get<PageResp<PlayerRow>>("/operator/players", { params, signal: ctrl.signal });
-        setRows(Array.isArray(data?.items) ? data.items : []);
+        const { data } = await api.get<PageResp<PlayerRow>>("/operator/players", {
+          params,
+          signal: ctrl.signal,
+        });
+
+        // 🔧 normalize: betsCount -> bets (frontend očekuje "bets")
+        const items = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({
+          ...it,
+          bets: Number(it?.betsCount ?? it?.bets ?? 0),
+        }));
+
+        setRows(items);
         setTotal(Number(data?.total ?? 0));
       } catch (e: any) {
         if (e?.name !== "CanceledError" && e?.code !== "ERR_CANCELED") {
@@ -49,13 +66,15 @@ export default function OperatorPlayers() {
     return () => ctrl.abort();
   }, [params]);
 
+  // ---- Leaderboard (Top 10)
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
       setLdrErr(null);
       try {
-        const { data } = await api.get("/operator/players/leaderboard", { signal: ctrl.signal });
-        setLeader(Array.isArray(data) ? data : []);
+        // ✅ koristi helper koji normalizuje { ggrCents, bets }
+        const data = await topPlayers({ from: fromIso, to: toIso }, 10, ctrl.signal);
+        setLeader(data);
       } catch (e: any) {
         if (e?.name !== "CanceledError" && e?.code !== "ERR_CANCELED") {
           setLdrErr(e?.response?.data?.message ?? e.message ?? "Failed to load leaderboard");
@@ -63,7 +82,7 @@ export default function OperatorPlayers() {
       }
     })();
     return () => ctrl.abort();
-  }, []);
+  }, [fromIso, toIso]);
 
   const lastPage = Math.max(1, Math.ceil(total / limit));
 
@@ -84,10 +103,10 @@ export default function OperatorPlayers() {
           </thead>
           <tbody>
             {leader.map((r, i) => (
-              <tr className="border-t" key={`${r.id ?? r.email ?? "row"}-${i}`}>
+              <tr className="border-t" key={`${r.email}-${i}`}>
                 <td className="px-3 py-2">{r.email ?? "-"}</td>
                 <td className="px-3 py-2 text-right">{fmtUSD(r.ggrCents)}</td>
-                <td className="px-3 py-2 text-right">{r.bets ?? "-"}</td>
+                <td className="px-3 py-2 text-right">{Number.isFinite(r.bets) ? r.bets : "-"}</td>
               </tr>
             ))}
             {leader.length === 0 && (
@@ -125,7 +144,7 @@ export default function OperatorPlayers() {
                 <td className="px-3 py-2">{r.email ?? "-"}</td>
                 <td className="px-3 py-2 text-right">{fmtUSD(r.balanceCents)}</td>
                 <td className="px-3 py-2 text-right">{fmtUSD(r.totalGgrCents)}</td>
-                <td className="px-3 py-2 text-right">{r.bets ?? "-"}</td>
+                <td className="px-3 py-2 text-right">{Number.isFinite(r.bets!) ? r.bets : "-"}</td>
                 <td className="px-3 py-2 text-right">
                   {r.lastActive ? dayjs(r.lastActive).format("YYYY-MM-DD HH:mm") : "-"}
                 </td>

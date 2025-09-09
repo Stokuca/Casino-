@@ -20,41 +20,31 @@ export class OperatorsPlayersService {
   // ---------------- TOP (leaderboard) ----------------
 // ---------------- TOP (leaderboard) ----------------
 // ---------------- TOP (leaderboard) ----------------
+// ---------------- TOP (leaderboard) ----------------
 async leaderboard(dto: LeaderboardDto) {
-  const limit = Math.min(dto.limit ?? 10, 100); // sigurnosni cap
+  const limit = Math.min(dto.limit ?? 10, 100);
 
-  // opcioni vremenski opseg
-  const toDate = dto.to ? new Date(dto.to) : undefined;
-  const fromDate = dto.from
-    ? new Date(dto.from)
-    : (toDate ? new Date(toDate.getTime() - 30 * 24 * 3600 * 1000) : undefined);
+  // opcioni vremenski opseg (from/to iz LeaderboardDto :: RangeDto)
+  const toDate   = dto.to   ? new Date(dto.to)   : undefined;
+  const fromDate = dto.from ? new Date(dto.from) :
+                   (toDate ? new Date(toDate.getTime() - 30 * 24 * 3600 * 1000) : undefined);
 
-  // Agregacija po playeru + email iz players tabele
   const qb = this.txRepo.createQueryBuilder('t')
     .innerJoin('t.player', 'p')
     .select('t."playerId"', 'playerId')
     .addSelect('p.email', 'email')
     .addSelect(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'betsCount')
-    .addSelect(
-      `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
-      'betCents',
-    )
-    .addSelect(
-      `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
-      'payoutCents',
-    )
-    .addSelect(
-      `
+    .addSelect(`SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`, 'betCents')
+    .addSelect(`SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`, 'payoutCents')
+    .addSelect(`
       SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)
       -
       SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)
-      `,
-      'ggrCents',
-    )
+    `, 'ggrCents')
     .groupBy('t."playerId"')
     .addGroupBy('p.email')
-    .orderBy('"ggrCents"', 'DESC')   // sort po GGR
-    .addOrderBy('t."playerId"', 'ASC')
+    .orderBy('"ggrCents"', 'DESC')
+    .addOrderBy('"betsCount"', 'DESC')
     .limit(limit);
 
   if (fromDate) qb.andWhere(`t."createdAt" >= :from`, { from: fromDate });
@@ -69,7 +59,6 @@ async leaderboard(dto: LeaderboardDto) {
     ggrCents: string | null;
   }>();
 
-  // Mapiramo u UI-friendly format koji front očekuje
   return rows.map(r => ({
     playerId: r.playerId,
     email: r.email ?? '-',
@@ -77,6 +66,8 @@ async leaderboard(dto: LeaderboardDto) {
     betsCount: Number(r.betsCount ?? 0),
   }));
 }
+
+
 
 
 

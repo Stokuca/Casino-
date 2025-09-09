@@ -158,34 +158,34 @@ async topProfitable(@Query() q: LimitRangeDto) {
 
   
 
-  @Get('games/most-popular')
-  @ApiOperation({ summary: 'Most popular games' })
-  @ApiOkResponse({
-    schema: {
-      example: [
-        { gameCode: 'slots', gameName: 'Slots', betsCount: 310 },
-        { gameCode: 'roulette', gameName: 'Roulette', betsCount: 190 },
-      ],
-    },
-  })
-  async mostPopular(@Query() q: LimitRangeDto) {
-    const dto = plainToInstance(LimitRangeDto, q);
-    const errors = validateSync(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    if (errors.length) throw new BadRequestException(errors);
+@Get('games/most-popular')
+@ApiOperation({ summary: 'Most popular games' })
+@ApiOkResponse({
+  schema: {
+    example: [
+      { gameCode: 'slots', gameName: 'Slots', ggrCents: '12000', betsCount: 177, totalBetCents: '100000', totalPayoutCents: '88000' },
+    ],
+  },
+})
+async mostPopular(@Query() q: LimitRangeDto) {
+  const dto = plainToInstance(LimitRangeDto, q);
+  const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+  if (errors.length) throw new BadRequestException(errors);
 
-    const { fromDate, toDate } = parseDates(dto.from, dto.to);
-    const limit = dto.limit ?? 5;
+  const { fromDate, toDate } = parseDates(dto.from, dto.to);
+  const limit = dto.limit ?? 5;
 
-    const rows = await this.metrics.mostPopularGames(limit, fromDate, toDate);
-    return rows.map((r) => ({
-      gameCode: r.gameCode,
-      gameName: r.gameName,
-      betsCount: Number(r.rounds ?? 0),
-    }));
-  }
+  const rows = await this.metrics.mostPopularGames(limit, fromDate, toDate);
+  return rows.map((r) => ({
+    gameCode: r.gameCode,
+    gameName: r.gameName,
+    betsCount: Number(r.rounds ?? 0),
+    ggrCents: String(r.ggrCents ?? 0),
+    totalBetCents: String(r.totalBetCents ?? 0),
+    totalPayoutCents: String(r.totalPayoutCents ?? 0),
+  }));
+}
+
 
   @Get('games/avg-bet')
   @ApiOperation({ summary: 'Average bet per game' })

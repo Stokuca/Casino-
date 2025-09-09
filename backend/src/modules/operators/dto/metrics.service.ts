@@ -225,24 +225,54 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
       .select('g.id', 'gameId')
       .addSelect('g.code', 'gameCode')
       .addSelect('g.name', 'gameName')
+      // #bets (popularnost)
       .addSelect(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'rounds')
+      // agregati za GGR
+      .addSelect(
+        `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
+        'totalBet'
+      )
+      .addSelect(
+        `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
+        'totalPayout'
+      )
       .groupBy('g.id')
       .addGroupBy('g.code')
       .addGroupBy('g.name')
       .orderBy(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'DESC')
+      .addOrderBy(`
+        SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)
+        -
+        SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)
+      `, 'DESC')
       .limit(limit);
-
+  
     applyRange(qb, from, to);
-
-    const rows = await qb.getRawMany<GameAggRow>();
-    return rows.map((r) => ({
-      gameId: r.gameId,
-      gameCode: r.gameCode,
-      gameName: r.gameName,
-      rounds: Number(r.rounds ?? 0),
-    }));
-    
+  
+    const rows = await qb.getRawMany<{
+      gameId: string;
+      gameCode: string;
+      gameName: string;
+      rounds: string;
+      totalBet: string;
+      totalPayout: string;
+    }>();
+  
+    return rows.map((r) => {
+      const bet = Number(r.totalBet ?? 0);
+      const payout = Number(r.totalPayout ?? 0);
+      return {
+        gameId: r.gameId,
+        gameCode: r.gameCode,
+        gameName: r.gameName,
+        rounds: Number(r.rounds ?? 0),
+        totalBetCents: bet,
+        totalPayoutCents: payout,
+        ggrCents: bet - payout,
+      };
+    });
   }
+  
 
   // ---------------- Average bet per game ----------------
   async avgBetPerGame(from?: Date, to?: Date) {

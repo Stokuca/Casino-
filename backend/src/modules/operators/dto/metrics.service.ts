@@ -167,6 +167,10 @@ return rows.map((r) => {
         `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
         'totalPayout',
       )
+      .addSelect(
+        `COUNT(*) FILTER (WHERE t.type = 'BET')`,
+        'rounds',                                // 👈 NOVO
+      )
       .groupBy('g.id')
       .addGroupBy('g.code')
       .addGroupBy('g.name')
@@ -179,24 +183,25 @@ return rows.map((r) => {
         'DESC',
       )
       .limit(limit);
-
+  
     applyRange(qb, from, to);
-
+  
     const rows = await qb.getRawMany<GameAggRow>();
-return rows.map((r) => {
-  const totalBet = Number(r.totalBet ?? 0);
-  const totalPayout = Number(r.totalPayout ?? 0);
-  return {
-    gameId: r.gameId,
-    gameCode: r.gameCode,
-    gameName: r.gameName,
-    totalBetCents: totalBet,
-    totalPayoutCents: totalPayout,
-    ggrCents: totalBet - totalPayout,
-  };
-});
-
+    return rows.map((r) => {
+      const totalBet = Number(r.totalBet ?? 0);
+      const totalPayout = Number(r.totalPayout ?? 0);
+      return {
+        gameId: r.gameId,
+        gameCode: r.gameCode,
+        gameName: r.gameName,
+        totalBetCents: totalBet,
+        totalPayoutCents: totalPayout,
+        ggrCents: totalBet - totalPayout,
+        betsCount: Number((r as any).rounds ?? 0),  // 👈 NOVO
+      };
+    });
   }
+  
 
   // ---------------- Most popular games (#BET) ----------------
   async mostPopularGames(limit: number, from?: Date, to?: Date) {

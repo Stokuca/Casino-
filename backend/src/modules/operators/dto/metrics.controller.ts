@@ -131,8 +131,7 @@ export class MetricsController {
   @ApiOkResponse({
     schema: {
       example: [
-        { gameCode: 'slots', gameName: 'Slots', ggrCents: '65000' },
-        { gameCode: 'roulette', gameName: 'Roulette', ggrCents: '42000' },
+        { gameCode: 'slots', gameName: 'Slots', ggrCents: '65000', betsCount: 175 }, // 👈 primer
       ],
     },
   })
@@ -143,10 +142,10 @@ export class MetricsController {
       forbidNonWhitelisted: true,
     });
     if (errors.length) throw new BadRequestException(errors);
-
+  
     const { fromDate, toDate } = parseDates(dto.from, dto.to);
     const limit = dto.limit ?? 5;
-
+  
     const rows = await this.metrics.topProfitableGames(limit, fromDate, toDate);
     return rows.map((r) => ({
       gameCode: r.gameCode,
@@ -154,8 +153,10 @@ export class MetricsController {
       ggrCents: String(r.ggrCents ?? 0),
       totalBetCents: String(r.totalBetCents ?? 0),
       totalPayoutCents: String(r.totalPayoutCents ?? 0),
+      betsCount: Number(r.betsCount ?? 0),  // 👈 NOVO
     }));
   }
+  
 
   @Get('games/most-popular')
   @ApiOperation({ summary: 'Most popular games' })

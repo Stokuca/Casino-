@@ -2,6 +2,8 @@ import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
 import { PlayerJwtGuard } from '../common/player-jwt.guard';
 import { TransactionsService } from './transactions.service';
+import { plainToInstance } from 'class-transformer';
+import { validateOrReject } from 'class-validator';
 import { QueryTransactionsDto } from './dto/query-transactions.dto';
 
 @ApiTags('Transactions')
@@ -16,11 +18,7 @@ export class TransactionsController {
   @ApiOkResponse({
     schema: {
       example: {
-        page: 1,
-        limit: 10,
-        total: 5,
-        totalPages: 1,
-        hasNext: false,
+        page: 1, limit: 10, total: 5,
         items: [
           {
             id: 'tx-1',
@@ -29,20 +27,14 @@ export class TransactionsController {
             amountCents: '1000',
             balanceAfterCents: '101000',
             createdAt: '2025-09-04T06:09:12.545Z'
-          },
-          {
-            id: 'tx-2',
-            type: 'PAYOUT',
-            game: 'slots',
-            amountCents: '1500',
-            balanceAfterCents: '102500',
-            createdAt: '2025-09-04T06:09:13.102Z'
           }
         ]
       }
     }
   })
-  list(@Req() req: any, @Query() query: QueryTransactionsDto) {
-    return this.svc.listForPlayer(req.user.sub, query);
+  async list(@Req() req: any, @Query() query: QueryTransactionsDto) {
+    const dto = plainToInstance(QueryTransactionsDto, query);
+    await validateOrReject(dto, { whitelist: true, forbidNonWhitelisted: true });
+    return this.svc.listForPlayer(req.user.sub, dto);
   }
 }

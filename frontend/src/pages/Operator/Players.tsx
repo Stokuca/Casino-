@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { api } from "../../api/http";
-import { topPlayers } from "../../api/operator"; // ⬅️ NOVO
+import { topPlayers } from "../../api/operator";
 
 const fmtUSD = (c?: string | number | null) =>
   (Number(c ?? 0) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -11,8 +11,8 @@ type PlayerRow = {
   email?: string;
   balanceCents?: string;
   totalGgrCents?: string;
-  bets?: number;          // ⬅️ UI-friendly
-  lastActive?: string;    // ISO
+  bets?: number;
+  lastActive?: string;
 };
 
 type PageResp<T> = { items: T[]; page: number; limit: number; total: number };
@@ -21,6 +21,15 @@ export default function OperatorPlayers() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [q, setQ] = useState("");
+
+  // ▼ NEW: date-range state (YYYY-MM-DD u UI)
+  const [from, setFrom] = useState(dayjs().subtract(30, "day").format("YYYY-MM-DD"));
+  const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
+
+  // ▼ NEW: konverzija u ISO za backend (>= from 00:00, <= to 23:59:59.999)
+  const fromIso = useMemo(() => dayjs(from).startOf("day").toISOString(), [from]);
+  const toIso   = useMemo(() => dayjs(to).endOf("day").toISOString(), [to]);
+
   const [rows, setRows] = useState<PlayerRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -29,12 +38,11 @@ export default function OperatorPlayers() {
   const [leader, setLeader] = useState<Array<{ email: string; ggrCents: string; bets: number }>>([]);
   const [ldrErr, setLdrErr] = useState<string | null>(null);
 
-  // ako želiš opseg, uzmi poslednjih 30 dana
-  const toIso = useMemo(() => dayjs().endOf("day").toISOString(), []);
-  const fromIso = useMemo(() => dayjs().subtract(30, "day").startOf("day").toISOString(), []);
-
-  // ⬇️ ispravan parametar za search je "search", ne "q"
-  const params = useMemo(() => ({ page, limit, ...(q && { search: q }) }), [page, limit, q]);
+  // ⬇️ uključujemo from/to u params + pravi key za pretragu je "search"
+  const params = useMemo(
+    () => ({ page, limit, from: fromIso, to: toIso, ...(q && { search: q }) }),
+    [page, limit, q, fromIso, toIso]
+  );
 
   // ---- Players table
   useEffect(() => {
@@ -47,10 +55,9 @@ export default function OperatorPlayers() {
           signal: ctrl.signal,
         });
 
-        // 🔧 normalize: betsCount -> bets (frontend očekuje "bets")
         const items = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({
           ...it,
-          bets: Number(it?.betsCount ?? it?.bets ?? 0),
+          bets: Number(it?.betsCount ?? it?.bets ?? 0), // normalize
         }));
 
         setRows(items);
@@ -66,13 +73,12 @@ export default function OperatorPlayers() {
     return () => ctrl.abort();
   }, [params]);
 
-  // ---- Leaderboard (Top 10)
+  // ---- Leaderboard (Top 10) — koristimo ISTI opseg
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
       setLdrErr(null);
       try {
-        // ✅ koristi helper koji normalizuje { ggrCents, bets }
         const data = await topPlayers({ from: fromIso, to: toIso }, 10, ctrl.signal);
         setLeader(data);
       } catch (e: any) {
@@ -118,12 +124,29 @@ export default function OperatorPlayers() {
 
       {/* Players table */}
       <div className="rounded-2xl border bg-white overflow-hidden">
-        <div className="px-4 py-3 flex items-center gap-3 border-b">
+        <div className="px-4 py-3 flex flex-wrap items-center gap-3 border-b">
+          {/* ▼ NEW: From/To filter */}
+          <label className="text-sm text-gray-600">From</label>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => { setFrom(e.target.value); setPage(1); }}
+            className="border rounded-lg p-2"
+          />
+          <label className="text-sm text-gray-600">To</label>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => { setTo(e.target.value); setPage(1); }}
+            className="border rounded-lg p-2"
+          />
+
+          {/* Search */}
           <input
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1); }}
             placeholder="Search email…"
-            className="border rounded-lg p-2 w-64"
+            className="border rounded-lg p-2 w-64 ml-auto"
           />
         </div>
 

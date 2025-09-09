@@ -99,20 +99,27 @@ export default function PlayerDashboard() {
     try {
       const amount = Number(bet);
       if (!Number.isFinite(amount) || amount <= 0) throw new Error("Bet must be > 0");
-
-      // ⬅ playBet(gameCode, betUsd, outcome?)
-      const data = await playBet(
+  
+      // playBet(gameCode, betUsd, outcome?)
+      const res = await playBet(
         game,
         amount,
         outcome === "win" ? "WIN" : "LOSS"
       );
-
-      setBalanceCents(data.balanceCents);
-      setStatus(
-        `Played ${GAMES[game].name}: ${outcome.toUpperCase()} — balance ${fromCents(
-          data.balanceCents
-        )}`
-      );
+  
+      setBalanceCents(res.balanceCents);
+  
+      // --- poruka po zadatku ---
+      const bet$ = fromCents(res.betCents ?? amount * 100);
+      const payout$ = fromCents(res.payoutCents ?? 0);
+      const balance$ = fromCents(res.balanceCents);
+  
+      const msg =
+        (res.payoutCents && Number(res.payoutCents) > 0)
+          ? `BET ${bet$} + PAYOUT ${payout$} → balance ${balance$}`
+          : `BET ${bet$} → balance ${balance$}`;
+  
+      setStatus(`${GAMES[game].name}: ${msg}`);
     } catch (e: any) {
       console.error(e);
       setStatus(e?.response?.data?.message ?? e.message ?? "Play failed");
@@ -120,6 +127,7 @@ export default function PlayerDashboard() {
       setBusy(false);
     }
   };
+  
 
   return (
     <div className="space-y-6">

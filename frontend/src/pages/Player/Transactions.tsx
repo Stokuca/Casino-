@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { getMyTransactions, type Tx, type TxType, type GameKey } from "../../api/transactions";
 
-const fmtMoney = (c: string) =>
+const fmtMoney = (c: string | number) =>
   (Number(c) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
-const fmtDate = (iso: string) => new Date(iso).toLocaleString();
+
 
 function useDebounced<T>(value: T, delay = 300) {
   const [v, setV] = useState(value);
@@ -40,6 +40,7 @@ export default function PlayerTransactions() {
   }), [page, limit, type, game, from, to]);
 
   const debounced = useDebounced(query, 350);
+  const fmtDate = (iso: string) => new Date(iso).toLocaleString();
 
   useEffect(() => {
     const ctrl = new AbortController();

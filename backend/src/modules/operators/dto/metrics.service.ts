@@ -5,19 +5,21 @@ import { ObjectLiteral, Repository, SelectQueryBuilder } from 'typeorm';
 import { Transaction } from '../../transactions/transaction.entity';
 import { Granularity } from './revenue.dto';
 
-type PeriodRow = { period: Date; totalbet: string; totalpayout: string };
+// gore u fajlu:
+type PeriodRow = { period: Date; totalBet: string; totalPayout: string };
+
 
 type GameAggRow = {
-  gameid: string;
-  gamecode: string;
-  gamename: string;
-  totalbet?: string;
-  totalpayout?: string;
+  gameId: string;
+  gameCode: string;
+  gameName: string;
+  totalBet?: string;
+  totalPayout?: string;
   ggr?: string;
   rounds?: string;
-  avgbet?: string;
-  rtppercent?: string;
-  rtptheoretical?: string;
+  avgBet?: string;
+  rtpPercent?: string;
+  rtpTheoretical?: string;
 };
 
 function dateTrunc(granularity: Granularity) {
@@ -70,18 +72,20 @@ export class MetricsService {
 
     applyRange(qb, from, to);
 
-    const rows = await qb.getRawMany<PeriodRow>();
+    // u revenueByPeriod():
+const rows = await qb.getRawMany<PeriodRow>();
 
-    return rows.map((r) => {
-      const totalBet = Number(r.totalbet ?? 0);
-      const totalPayout = Number(r.totalpayout ?? 0);
-      return {
-        period: r.period,
-        totalBetCents: totalBet,
-        totalPayoutCents: totalPayout,
-        ggrCents: totalBet - totalPayout,
-      };
-    });
+return rows.map((r) => {
+  const totalBet = Number(r.totalBet ?? 0);
+  const totalPayout = Number(r.totalPayout ?? 0);
+  return {
+    period: r.period,
+    totalBetCents: totalBet,
+    totalPayoutCents: totalPayout,
+    ggrCents: totalBet - totalPayout,
+  };
+});
+
   }
 
   // ---------------- Revenue by game (pie) ----------------
@@ -110,18 +114,19 @@ export class MetricsService {
     applyRange(qb, from, to);
 
     const rows = await qb.getRawMany<GameAggRow>();
-    return rows.map((r) => {
-      const totalBet = Number(r.totalbet ?? 0);
-      const totalPayout = Number(r.totalpayout ?? 0);
-      return {
-        gameId: r.gameid,
-        gameCode: r.gamecode,
-        gameName: r.gamename,
-        totalBetCents: totalBet,
-        totalPayoutCents: totalPayout,
-        ggrCents: totalBet - totalPayout,
-      };
-    });
+return rows.map((r) => {
+  const totalBet = Number(r.totalBet ?? 0);
+  const totalPayout = Number(r.totalPayout ?? 0);
+  return {
+    gameId: r.gameId,
+    gameCode: r.gameCode,
+    gameName: r.gameName,
+    totalBetCents: totalBet,
+    totalPayoutCents: totalPayout,
+    ggrCents: totalBet - totalPayout,
+  };
+});
+
   }
 
   // ---------------- Top profitable games (po GGR) ----------------
@@ -156,18 +161,19 @@ export class MetricsService {
     applyRange(qb, from, to);
 
     const rows = await qb.getRawMany<GameAggRow>();
-    return rows.map((r) => {
-      const totalBet = Number(r.totalbet ?? 0);
-      const totalPayout = Number(r.totalpayout ?? 0);
-      return {
-        gameId: r.gameid,
-        gameCode: r.gamecode,
-        gameName: r.gamename,
-        totalBetCents: totalBet,
-        totalPayoutCents: totalPayout,
-        ggrCents: totalBet - totalPayout,
-      };
-    });
+return rows.map((r) => {
+  const totalBet = Number(r.totalBet ?? 0);
+  const totalPayout = Number(r.totalPayout ?? 0);
+  return {
+    gameId: r.gameId,
+    gameCode: r.gameCode,
+    gameName: r.gameName,
+    totalBetCents: totalBet,
+    totalPayoutCents: totalPayout,
+    ggrCents: totalBet - totalPayout,
+  };
+});
+
   }
 
   // ---------------- Most popular games (#BET) ----------------
@@ -189,11 +195,12 @@ export class MetricsService {
 
     const rows = await qb.getRawMany<GameAggRow>();
     return rows.map((r) => ({
-      gameId: r.gameid,
-      gameCode: r.gamecode,
-      gameName: r.gamename,
+      gameId: r.gameId,
+      gameCode: r.gameCode,
+      gameName: r.gameName,
       rounds: Number(r.rounds ?? 0),
     }));
+    
   }
 
   // ---------------- Average bet per game ----------------
@@ -217,11 +224,12 @@ export class MetricsService {
 
     const rows = await qb.getRawMany<GameAggRow>();
     return rows.map((r) => ({
-      gameId: r.gameid,
-      gameCode: r.gamecode,
-      gameName: r.gamename,
-      avgBetCents: Math.round(Number(r.avgbet ?? 0)),
+      gameId: r.gameId,
+      gameCode: r.gameCode,
+      gameName: r.gameName,
+      avgBetCents: Math.round(Number(r.avgBet ?? 0)),
     }));
+    
   }
 
   // ---------------- Actual vs Theoretical RTP per game ----------------
@@ -264,13 +272,14 @@ export class MetricsService {
 
     const rows = await qb.getRawMany<GameAggRow>();
     return rows.map((r) => ({
-      gameId: r.gameid,
-      gameCode: r.gamecode,
-      gameName: r.gamename,
-      theoreticalRtpPct: Number(r.rtptheoretical ?? 0), // numeric(5,2) → number
-      actualRtpPct: Number(r.rtppercent ?? 0),
-      totalBetCents: Number(r.totalbet ?? 0),
-      totalPayoutCents: Number(r.totalpayout ?? 0),
+      gameId: r.gameId,
+      gameCode: r.gameCode,
+      gameName: r.gameName,
+      theoreticalRtpPct: Number(r.rtpTheoretical ?? 0),
+      actualRtpPct: Number(r.rtpPercent ?? 0),
+      totalBetCents: Number(r.totalBet ?? 0),
+      totalPayoutCents: Number(r.totalPayout ?? 0),
     }));
+    
   }
 }

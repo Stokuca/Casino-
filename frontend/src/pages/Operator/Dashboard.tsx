@@ -162,14 +162,19 @@ export default function OperatorDashboard() {
         <div className="rounded-2xl border p-4 bg-white">
           <div className="mb-2 font-medium">Revenue by {gran}</div>
           <div className="h-64">
-            <ResponsiveContainer>
-              <AreaChart data={series}>
-                <XAxis dataKey="ts" />
-                <YAxis tickFormatter={(v) => `$${v}`} />
-                <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
-                <Area type="monotone" dataKey="ggr" fillOpacity={0.3} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <ResponsiveContainer>
+            <AreaChart data={series}>
+              <XAxis dataKey="ts" />
+              {/* OVO zameni */}
+              <YAxis
+                domain={['dataMin', 'dataMax']}   // da podrži i negativne vrednosti
+                tickFormatter={(v) => `$${v}`}
+              />
+              <Tooltip formatter={(v: number) => fmtUSD(v * 100)} />
+              <Area type="monotone" dataKey="ggr" fillOpacity={0.3} />
+            </AreaChart>
+          </ResponsiveContainer>
+
           </div>
         </div>
 

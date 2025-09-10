@@ -1,69 +1,52 @@
-# React + TypeScript + Vite
+# Casino Platform Frontend 🎰
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend application for the **Casino Platform**, built with **React + TypeScript + Vite**.  
+It provides both **Player** and **Operator** dashboards with real-time updates over WebSockets.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Player
+- Register & login
+- Wallet management (deposit, withdraw)
+- Betting simulator (Slots, Roulette, Blackjack)
+- Real-time transaction updates
+- Transaction history
 
-## Expanding the ESLint configuration
+### Operator
+- Dashboard with GGR, bets count, active players
+- Revenue charts (by day, by game)
+- Most profitable and most popular games
+- Real-time metrics updates
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tech Stack
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **React 19 + TypeScript**
+- **Vite** for fast development
+- **Redux Toolkit** for global state
+- **Recharts** for charts and visualizations
+- **Tailwind CSS** for styling
+- **Axios** for API communication
+- **Socket.io-client** for real-time updates
+- **Day.js** for date utilities
+- **Formik + Yup** for form handling and validation
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## Development
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```bash
+# install dependencies
+npm install
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+# start in development mode
+npm run dev
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+# build for production
+npm run build
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+# preview production build
+npm run preview
+
+# lint check
+npm run lint
+
+# create your .env file by copying the example
+cp .env.example .env

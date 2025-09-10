@@ -42,5 +42,3 @@ api.interceptors.response.use(
   }
 );
 
-// (privremeno) pomozi sebi:
-console.log("API baseURL =", api.defaults.baseURL);

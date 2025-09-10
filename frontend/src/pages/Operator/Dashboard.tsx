@@ -159,14 +159,6 @@ export default function OperatorDashboard() {
     seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading ||
     avgBetQ.loading || activeQ.loading || betsQ.loading || rtpQ.loading;
 
-  useEffect(() => { console.log('[WS] revenue:tick or metrics:changed -> tick=', tick); }, [tick]);
-  useEffect(() => { console.log('revenue()', seriesQ.data); }, [seriesQ.data]);
-  useEffect(() => { console.log('revenueByGame()', byGameQ.data); }, [byGameQ.data]);
-  useEffect(() => { console.log('mostProfitable()', profQ.data); }, [profQ.data]);
-  useEffect(() => { console.log('mostPopular()', popularQ.data); }, [popularQ.data]);
-  useEffect(() => { console.log('avgBet()', avgBetQ.data); }, [avgBetQ.data]);
-  useEffect(() => { console.log('rtpPerGame()', rtpQ.data); }, [rtpQ.data]);
-
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Operator Dashboard</h1>

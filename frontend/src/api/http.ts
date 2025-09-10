@@ -1,13 +1,12 @@
-import axios, { AxiosError } from "axios";
-import type { AxiosRequestConfig } from "axios";
+// src/api/http.ts
+import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import { store } from "../store";
 import { logout } from "../store/slices/authSlice";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
   withCredentials: true,
 });
-
 
 let isRefreshing = false;
 let queue: Array<() => void> = [];
@@ -16,10 +15,7 @@ api.interceptors.response.use(
   (r) => r,
   async (error: AxiosError) => {
     const original = error.config as AxiosRequestConfig & { _retry?: boolean };
-
-    if (error.response?.status !== 401 || !original) {
-      return Promise.reject(error);
-    }
+    if (error.response?.status !== 401 || !original) return Promise.reject(error);
 
     if (original._retry) {
       store.dispatch(logout());
@@ -45,3 +41,6 @@ api.interceptors.response.use(
     return api(original);
   }
 );
+
+// (privremeno) pomozi sebi:
+console.log("API baseURL =", api.defaults.baseURL);

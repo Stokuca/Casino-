@@ -1,18 +1,25 @@
+// cookies.ts
 export const ACCESS_COOKIE = 'access';
 export const REFRESH_COOKIE = 'refresh';
 
-export const accessCookieOpts = {
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: false, 
-  path: '/',
+const isProd = process.env.NODE_ENV === 'production';
+const cookieDomain = process.env.COOKIE_DOMAIN?.trim() || undefined;
 
+const baseOpts = {
+  httpOnly: true as const,
+  sameSite: 'lax' as const,
+  secure: isProd,
+  path: '/' as const,
+  ...(cookieDomain ? { domain: cookieDomain } : {}),
+};
+
+export const accessCookieOpts = {
+  ...baseOpts,
 };
 
 export const refreshCookieOpts = {
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  secure: false,         
-  path: '/',
+  ...baseOpts,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
+export const clearCookieOpts = baseOpts;

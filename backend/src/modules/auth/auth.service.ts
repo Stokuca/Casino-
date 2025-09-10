@@ -56,6 +56,7 @@ export class AuthService {
     res.cookie(ACCESS_COOKIE, access, accessCookieOpts);
     res.cookie(REFRESH_COOKIE, refresh, refreshCookieOpts);
   }
+  
 
   clearCookies(res: Response) {
     res.clearCookie(ACCESS_COOKIE, { path: '/' });

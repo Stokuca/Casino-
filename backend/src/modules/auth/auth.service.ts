@@ -1,4 +1,3 @@
-// backend/src/modules/auth/auth.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -33,7 +32,6 @@ export class AuthService {
     private readonly cfg: ConfigService,
   ) {}
 
-  /* -------------------- helpers -------------------- */
 
   private async signAccess(payload: { sub: string; email?: string; role: Role }) {
     const secret = this.cfg.get<string>('JWT_SECRET');
@@ -64,13 +62,10 @@ export class AuthService {
     res.clearCookie(REFRESH_COOKIE, { path: '/' });
   }
 
-  /* -------------------- business -------------------- */
-
-  // REGISTRACIJA: kreira igrača + inicijalni DEPOSIT ($1000 default)
   async register(email: string, password: string, res: Response) {
     const normEmail = email.trim().toLowerCase();
     const initialCentsEnv = this.cfg.get<string>('INITIAL_DEPOSIT_CENTS');
-    const INITIAL = BigInt(initialCentsEnv ?? '100000'); // $1000 default
+    const INITIAL = BigInt(initialCentsEnv ?? '100000');
 
     const hash = await bcrypt.hash(password, 10);
 
@@ -157,7 +152,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh');
     }
 
-    // rotacija: izdaj novi access (i po želji novi refresh)
     await this.issueCookies(res, { sub: decoded.sub, role: decoded.role });
     return { ok: true };
   }

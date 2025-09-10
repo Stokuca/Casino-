@@ -7,7 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
-import { ACCESS_COOKIE } from '../auth/cookies'; // prilagodi putanju!
+import { ACCESS_COOKIE } from '../auth/cookies';
 
 @Injectable()
 export class PlayerJwtGuard implements CanActivate {
@@ -19,10 +19,8 @@ export class PlayerJwtGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<Request>();
 
-    // 👇 Prvo pokušaj iz cookie-ja (access)
     const tokenFromCookie = req.cookies?.[ACCESS_COOKIE];
 
-    // 👇 Ako baš pošalješ Bearer header, koristi fallback
     const tokenFromHeader = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.slice(7)
       : undefined;
@@ -39,7 +37,6 @@ export class PlayerJwtGuard implements CanActivate {
         throw new UnauthorizedException('Player token required');
       }
 
-      // 👇 zakači user na request, da ga kontroleri vide kao req.user
       (req as any).user = {
         sub: payload.sub,
         email: payload.email,

@@ -15,9 +15,8 @@ export class BetsService {
 
   async play(playerId: string, gameCode: string, amountStr: string, outcome: Outcome) {
     const betAmount = BigInt(amountStr);
-    const winMultiplier = 2n; // mock isplata na win
+    const winMultiplier = 2n;
 
-    // izvrši sve u transakciji i vrati podatke za emit
     const result = await this.ds.transaction(async (q) => {
       const prepo = q.getRepository(Player);
       const trepo = q.getRepository(Transaction);
@@ -30,7 +29,6 @@ export class BetsService {
       const current = BigInt(p.balanceCents);
       if (current < betAmount) throw new BadRequestException('Insufficient funds');
 
-      // 1) BET
       const afterBet = current - betAmount;
       await prepo.update(p.id, { balanceCents: afterBet.toString() });
       const betTx = await trepo.save({
@@ -42,7 +40,6 @@ export class BetsService {
         meta: { game: game.code },
       });
 
-      // 2) Opcioni PAYOUT
       let finalBal = afterBet;
       let payoutTx: Transaction | null = null;
 
@@ -70,12 +67,10 @@ export class BetsService {
       };
     });
 
-    // ✅ emit POSLE commita
-    // Player eventi
     this.realtime.emitPlayerBalance(result.playerId, result.balanceCents);
     this.realtime.emitPlayerTx(result.playerId, {
       id: result.betTx.id,
-      type: result.betTx.type,            // 'BET'
+      type: result.betTx.type,       
       amountCents: result.betTx.amountCents,
       balanceAfterCents: result.betTx.balanceAfterCents,
       gameId: result.betTx.gameId,

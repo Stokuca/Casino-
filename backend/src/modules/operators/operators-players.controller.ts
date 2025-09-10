@@ -16,7 +16,6 @@ import { LeaderboardDto } from './dto/leaderboard.dto';
 export class OperatorsPlayersController {
   constructor(private readonly svc: OperatorsPlayersService) {}
 
-  // ---------------- Top players (GGR) ----------------
   @Get('players/leaderboard')
   @ApiOperation({ summary: 'Top players by GGR' })
   @ApiOkResponse({
@@ -30,15 +29,9 @@ export class OperatorsPlayersController {
   async leaderboard(@Query() q: LeaderboardDto) {
     const dto = plainToInstance(LeaderboardDto, q);
     await validateOrReject(dto);
-    // servis sada već vraća tačno ono što front očekuje
     return this.svc.leaderboard(dto);
   }
   
-  
-  
-  
-
-  // ---------------- Players list (sort/page/search/range) ----------------
   @Get('players')
   @ApiOperation({ summary: 'Players table (sort, page, filters)' })
   @ApiOkResponse({
@@ -65,7 +58,6 @@ export class OperatorsPlayersController {
   async players(@Query() q: QueryPlayersDto) {
     const dto = plainToInstance(QueryPlayersDto, q);
     await validateOrReject(dto);
-    // servis već vraća UI-friendly polja i paginaciju
     return this.svc.listPlayers(dto);
   }
 }

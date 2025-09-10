@@ -4,7 +4,7 @@ import ds from './data-source';
 import * as bcrypt from 'bcrypt';
 
 import { Game } from './modules/games/game.entity';
-import { GameCode } from './modules/common/enums'; // 👈 enum
+import { GameCode } from './modules/common/enums';
 import { Operator } from './modules/operators/operator.entity';
 
 async function main() {
@@ -13,7 +13,6 @@ async function main() {
   const opRepo = ds.getRepository(Operator);
   const gameRepo = ds.getRepository(Game);
 
-  // Seed operator admin
   const adminEmail = 'admin@operator.com';
   const existingOp = await opRepo.findOne({ where: { email: adminEmail } });
   if (!existingOp) {
@@ -22,7 +21,6 @@ async function main() {
     console.log('Seed: operator admin created');
   }
 
-  // Seed igre (enum vrednosti)
   const defaults: Array<Pick<Game, 'code' | 'name' | 'rtpTheoretical'>> = [
     { code: GameCode.SLOTS,     name: 'Slots',     rtpTheoretical: '96.00' },
     { code: GameCode.ROULETTE,  name: 'Roulette',  rtpTheoretical: '97.30' },

@@ -1,19 +1,18 @@
-// src/modules/auth/auth.controller.ts
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiOkResponse, ApiCreatedResponse, ApiBody } from '@nestjs/swagger';
 import type { Response, Request } from 'express';
 
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { PlayerLoginDto } from './dto/player-login.dto';
+import { OperatorLoginDto } from './dto/operator-login.dto';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookies';
 
 @ApiTags('Auth')
-@Controller() // ⬅️ bez prefiksa; rute navodimo eksplicitno
+@Controller()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  // ---------- Player ----------
   @Post('auth/register')
   @ApiOperation({ summary: 'Player register' })
   @ApiCreatedResponse({ description: 'Creates player, sets cookies, returns {role,user}' })
@@ -24,19 +23,19 @@ export class AuthController {
   @Post('auth/login')
   @ApiOperation({ summary: 'Player login' })
   @ApiOkResponse({ description: 'Sets cookies, returns {role,user}' })
-  playerLogin(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  @ApiBody({ type: PlayerLoginDto })
+  playerLogin(@Body() dto: PlayerLoginDto, @Res({ passthrough: true }) res: Response) {
     return this.auth.playerLogin(dto.email, dto.password, res);
   }
 
-  // ---------- Operator ----------
   @Post('operator/login')
   @ApiOperation({ summary: 'Operator login' })
   @ApiOkResponse({ description: 'Sets cookies, returns {role,user}' })
-  operatorLogin(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  @ApiBody({ type: OperatorLoginDto })
+  operatorLogin(@Body() dto: OperatorLoginDto, @Res({ passthrough: true }) res: Response) {
     return this.auth.operatorLogin(dto.email, dto.password, res);
   }
 
-  // ---------- Session helpers ----------
   @Get('auth/me')
   @ApiOperation({ summary: 'Current session from access cookie' })
   async me(@Req() req: Request) {

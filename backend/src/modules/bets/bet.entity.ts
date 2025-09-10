@@ -16,7 +16,7 @@ export class Bet {
   @ManyToOne(() => Game) @JoinColumn({ name: 'gameId' }) game: Game;
 
   @Column({ type: 'bigint' }) stakeCents: string;
-  @Column({ type: 'varchar' }) outcome: Outcome; // WIN | LOSS
+  @Column({ type: 'varchar' }) outcome: Outcome;
   @Column({ type: 'bigint', default: 0 }) payoutCents: string;
 
   @Index()

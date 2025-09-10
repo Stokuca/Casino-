@@ -1,7 +1,6 @@
 import { IsString, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-// amount u centima kao string (pozitivan integer)
 const centsRegex = /^[1-9]\d*$/;
 
 export class AmountDto {

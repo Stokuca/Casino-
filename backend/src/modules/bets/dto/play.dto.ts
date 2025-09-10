@@ -15,6 +15,6 @@ export class PlayDto {
   amountCents!: string;
 
   @ApiProperty({ enum: Object.values(Outcome), example: 'WIN' })
-  @IsEnum(Outcome) // 'WIN' | 'LOSS'
+  @IsEnum(Outcome)
   outcome!: Outcome;
 }

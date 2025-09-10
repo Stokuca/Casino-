@@ -7,8 +7,6 @@ import { QueryPlayersDto } from './dto/query-players.dto';
 import { LeaderboardDto } from './dto/leaderboard.dto';
 import { ActivePlayersDto } from './dto/active-players.dto';
 
-
-/** Dosledan vremenski opseg: >= from AND <= to nad t."createdAt" */
 function applyRange<T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   from?: Date,
@@ -26,13 +24,8 @@ export class OperatorsPlayersService {
     @InjectRepository(Player) private readonly playerRepo: Repository<Player>,
   ) {}
 
-  // -------------------------------------------------------------------------
-  // TOP (leaderboard) — rang po GGR u izabranom opsegu, uz #bets
-  // -------------------------------------------------------------------------
   async leaderboard(dto: LeaderboardDto) {
     const limit = Math.min(dto.limit ?? 10, 100);
-
-    // opcioni vremenski opseg (default: poslednjih 30 dana ka 'to', ako postoji)
     const toDate   = dto.to   ? new Date(dto.to)   : undefined;
     const fromDate = dto.from ? new Date(dto.from)
       : (toDate ? new Date(toDate.getTime() - 30 * 24 * 3600 * 1000) : undefined);
@@ -73,41 +66,32 @@ export class OperatorsPlayersService {
     return rows.map((r) => ({
       playerId: r.playerId,
       email: r.email ?? '-',
-      // dosledno: centi kao string
       totalGgrCents: String(Number(r.ggrCents ?? 0)),
       betsCount: Number(r.betsCount ?? 0),
     }));
   }
 
-  // -------------------------------------------------------------------------
-  // LIST (search/date/sort/pagination) — tabela igrača
-  // -------------------------------------------------------------------------
   async listPlayers(dto: QueryPlayersDto) {
-    // pagination
     const page = Math.max(1, Number(dto.page ?? 1));
     const limit = Math.min(Math.max(1, Number(dto.limit ?? 10)), 100);
     const offset = (page - 1) * limit;
 
-    // date range (default: poslednjih 30 dana ka 'to')
     const toDate = dto.to ? new Date(dto.to) : new Date();
     const fromDate = dto.from ? new Date(dto.from) : new Date(toDate.getTime() - 30 * 24 * 3600 * 1000);
 
     const search = (dto.search ?? '').trim().toLowerCase() || null;
 
-    // 1) Agregacija po playerId iz transactions za dati opseg
     const aggQb = this.txRepo
       .createQueryBuilder('t')
       .select('t."playerId"', 'playerId')
       .addSelect(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'betsCount')
       .addSelect(`SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`, 'betCents')
       .addSelect(`SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`, 'payoutCents')
-      // lastActive: poslednja aktivnost BET (zadrži ovako da tabla meri "aktivnost igranja")
       .addSelect(`MAX(t."createdAt") FILTER (WHERE t.type = 'BET')`, 'lastActive');
 
     applyRange(aggQb, fromDate, toDate);
     aggQb.groupBy('t."playerId"');
 
-    // 2) Wrap kao subquery i JOIN na players da dobijemo email/balance
     const dataQb = this.txRepo
       .createQueryBuilder()
       .select([
@@ -127,7 +111,6 @@ export class OperatorsPlayersService {
       dataQb.andWhere('LOWER(p.email) LIKE :q', { q: `%${search}%` });
     }
 
-    // sort mapping
     const sortKey = String(dto.sort ?? 'revenue').toLowerCase();
     const orderDir = (String(dto.order ?? 'desc').toUpperCase() === 'ASC' ? 'ASC' : 'DESC') as 'ASC' | 'DESC';
 
@@ -136,8 +119,7 @@ export class OperatorsPlayersService {
         ? `"betCents" - "payoutCents"`
         : sortKey === 'bets'
         ? `"betsCount"`
-        : `"lastActive"`; // default
-
+        : `"lastActive"`; 
     dataQb.orderBy(sortExpr, orderDir).offset(offset).limit(limit);
 
     const rows = await dataQb.getRawMany<{
@@ -150,7 +132,6 @@ export class OperatorsPlayersService {
       lastActive: Date | null;
     }>();
 
-    // 3) total (uz iste filtere i search)
     const countQb = this.txRepo
       .createQueryBuilder()
       .select('COUNT(*)', 'cnt')
@@ -170,7 +151,6 @@ export class OperatorsPlayersService {
     const items = rows.map((r) => ({
       playerId: r.playerId,
       email: r.email ?? '-',
-      // centi kao string — dosledno sa ostatkom API-ja
       balanceCents: String(Number(r.balanceCents ?? 0)),
       totalGgrCents: String(Number(r.betCents ?? 0) - Number(r.payoutCents ?? 0)),
       betsCount: Number(r.betsCount ?? 0),
@@ -180,9 +160,6 @@ export class OperatorsPlayersService {
     return { page, limit, total, totalPages, hasNext, items };
   }
 
-  // -------------------------------------------------------------------------
-  // KPI: Active players u poslednjih N dana (BET/PAYOUT)
-  // -------------------------------------------------------------------------
   async activePlayers(dto: ActivePlayersDto) {
     const since = new Date();
     since.setUTCDate(since.getUTCDate() - dto.windowDays);

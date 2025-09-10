@@ -15,7 +15,6 @@ export class WalletService {
   async deposit(playerId: string, amountCentsStr: string) {
     const amount = BigInt(amountCentsStr);
 
-    // izvrši DB promene; vrati šta je potrebno za emit posle commita
     const result = await this.ds.transaction(async (q) => {
       const prepo = q.getRepository(Player);
       const trepo = q.getRepository(Transaction);
@@ -36,11 +35,10 @@ export class WalletService {
       return {
         playerId,
         balanceCents: newBal.toString(),
-        tx, // treba nam za emit
+        tx, 
       };
     });
 
-    // ✅ emit POSLE commita
     this.realtime.emitPlayerBalance(result.playerId, result.balanceCents);
     this.realtime.emitPlayerTx(result.playerId, {
       id: result.tx.id,
@@ -88,7 +86,6 @@ export class WalletService {
       };
     });
 
-    // ✅ emit POSLE commita
     this.realtime.emitPlayerBalance(result.playerId, result.balanceCents);
     this.realtime.emitPlayerTx(result.playerId, {
       id: result.tx.id,

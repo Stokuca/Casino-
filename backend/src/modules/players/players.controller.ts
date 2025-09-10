@@ -24,10 +24,10 @@ export class PlayersController {
     const playerId = String(req.user?.sub);
     const player = await this.playersRepo.findOneByOrFail({ id: playerId });
 
-    const cents = BigInt(player.balanceCents); // čuvamo preciznost
+    const cents = BigInt(player.balanceCents); 
     return {
       balanceCents: cents.toString(),
-      balance: Number(cents) / 100, // u $ za prikaz
+      balance: Number(cents) / 100,
     };
   }
 }

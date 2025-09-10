@@ -9,20 +9,17 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Security
   app.use(helmet());
-  app.use(cookieParser()); // obavezno: omogućava čitanje httpOnly kolačića (req.cookies)
+  app.use(cookieParser()); 
 
-  // CORS: credentials + cookies iz Vite fronta na 5173
   app.enableCors({
     origin: 'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    optionsSuccessStatus: 204, // da preflight ne crashuje neke klijente
+    optionsSuccessStatus: 204,
   });
 
-  // Global DTO validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -31,7 +28,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger (http://localhost:3000/docs)
   const swaggerCfg = new DocumentBuilder()
     .setTitle('Casino Platform API')
     .setDescription('API dokumentacija za player i operator deo')

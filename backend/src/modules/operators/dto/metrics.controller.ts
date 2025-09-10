@@ -1,4 +1,3 @@
-// backend/src/modules/operators/dto/metrics.controller.ts
 import {
   BadRequestException,
   Controller,
@@ -9,7 +8,6 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 
-// ✅ Swagger
 import {
   ApiTags,
   ApiBearerAuth,
@@ -27,16 +25,14 @@ function parseDates(from?: string, to?: string) {
   const toDate = to ? new Date(to) : now;
   const fromDate = from
     ? new Date(from)
-    : new Date(toDate.getTime() - 30 * 24 * 3600 * 1000); // default 30 dana
+    : new Date(toDate.getTime() - 30 * 24 * 3600 * 1000);
   return { fromDate, toDate };
 }
 
 function ymd(d: Date) {
-  // ISO YYYY-MM-DD (bez vremena) da lepše izgleda u grafovima
   return new Date(d).toISOString().slice(0, 10);
 }
 
-// ✅ Swagger: tag + named bearer (u main.ts: 'access-token')
 @ApiTags('Metrics')
 @ApiBearerAuth('access-token')
 @UseGuards(OperatorJwtGuard)
@@ -44,9 +40,6 @@ function ymd(d: Date) {
 export class MetricsController {
   constructor(private readonly metrics: MetricsService) {}
 
-  // ---------------------------------------------------------
-  // Revenue (po periodu)
-  // ---------------------------------------------------------
   @Get('revenue')
   @ApiOperation({ summary: 'Revenue (GGR) by period' })
   @ApiOkResponse({
@@ -88,9 +81,6 @@ export class MetricsController {
     return { totalGgrCents, series };
   }
 
-  // ---------------------------------------------------------
-  // Revenue by game (pie)
-  // ---------------------------------------------------------
   @Get('revenue-by-game')
   @ApiOperation({ summary: 'Revenue by game (pie)' })
   @ApiOkResponse({
@@ -117,15 +107,11 @@ export class MetricsController {
       gameCode: r.gameCode,
       gameName: r.gameName,
       ggrCents: String(r.ggrCents ?? 0),
-      // opcionalno za detaljnije pie tooltipe:
       totalBetCents: String(r.totalBetCents ?? 0),
       totalPayoutCents: String(r.totalPayoutCents ?? 0),
     }));
   }
 
-  // ---------------------------------------------------------
-  // Games metrics
-  // ---------------------------------------------------------
   @Get('games/top-profitable')
 @ApiOperation({ summary: 'Top profitable games' })
 @ApiOkResponse({
@@ -151,12 +137,9 @@ async topProfitable(@Query() q: LimitRangeDto) {
     ggrCents: String(r.ggrCents ?? 0),
     totalBetCents: String(r.totalBetCents ?? 0),
     totalPayoutCents: String(r.totalPayoutCents ?? 0),
-    // ✅ novo polje
     betsCount: Number((r as any).betsCount ?? 0),
   }));
 }
-
-  
 
 @Get('games/most-popular')
 @ApiOperation({ summary: 'Most popular games' })
@@ -215,9 +198,6 @@ async mostPopular(@Query() q: LimitRangeDto) {
     }));
   }
 
-  // ---------------------------------------------------------
-  // Active players (DISTINCT igrači sa BET u opsegu)
-  // ---------------------------------------------------------
   @Get('active-players')
   @ApiOperation({ summary: 'Active players in range (distinct players with BET)' })
   @ApiOkResponse({ schema: { example: { count: 13 } } })
@@ -231,9 +211,6 @@ async mostPopular(@Query() q: LimitRangeDto) {
     return { count };
   }
 
-  // ---------------------------------------------------------
-  // #Bets KPI (broj BET transakcija u opsegu)
-  // ---------------------------------------------------------
   @Get('bets-count')
   @ApiOperation({ summary: 'Total BET transactions count in range' })
   @ApiOkResponse({ schema: { example: { count: 217 } } })
@@ -244,7 +221,7 @@ async mostPopular(@Query() q: LimitRangeDto) {
 
     const { fromDate, toDate } = parseDates(dto.from, dto.to);
     const { bets } = await this.metrics.betsCount(fromDate, toDate);
-    return { count: bets }; // ⬅ frontend očekuje { count }
+    return { count: bets };
   }
 
   @Get('games/rtp')
@@ -273,7 +250,6 @@ async mostPopular(@Query() q: LimitRangeDto) {
       gameName: r.gameName,
       theoreticalRtpPct: Number(r.theoreticalRtpPct ?? 0),
       actualRtpPct: Number(r.actualRtpPct ?? 0),
-      // opcionalno za tooltip/QA:
       totalBetCents: String(r.totalBetCents ?? 0),
       totalPayoutCents: String(r.totalPayoutCents ?? 0),
     }));

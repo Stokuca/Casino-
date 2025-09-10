@@ -18,12 +18,10 @@ export class TransactionsService {
   constructor(@InjectRepository(Transaction) private readonly trepo: Repository<Transaction>) {}
 
   async listForPlayer(playerId: string, q: QueryTransactionsDto) {
-    // pagination
     const page  = Math.max(1, Number(q.page ?? 1));
     const limit = Math.min(Math.max(1, Number(q.limit ?? 20)), 100);
     const offset = (page - 1) * limit;
 
-    // date range
     const fromDate = q.from ? new Date(q.from) : undefined;
     const toDate   = q.to   ? new Date(q.to)   : undefined;
 
@@ -37,10 +35,8 @@ export class TransactionsService {
 
     applyRange(baseQb, fromDate, toDate);
 
-    // count upit
     const countQb = baseQb.clone().select('COUNT(*)', 'cnt');
 
-    // data upit — citirani aliasi + ISO u UTC
     const dataQb = baseQb
       .clone()
       .select([
@@ -62,7 +58,7 @@ export class TransactionsService {
         type: 'BET' | 'PAYOUT' | 'DEPOSIT' | 'WITHDRAWAL';
         amountCents: string | null;
         balanceAfterCents: string | null;
-        createdAt: string;       // već ISO
+        createdAt: string;    
         gameCode: string | null;
       }>(),
       countQb.getRawOne<{ cnt: string }>(),
@@ -80,7 +76,7 @@ export class TransactionsService {
         amountCents: String(r.amountCents ?? 0),
         balanceAfterCents: String(r.balanceAfterCents ?? 0),
         game: r.gameCode ?? null,
-        createdAt: r.createdAt,   // ISO (UTC)
+        createdAt: r.createdAt, 
       })),
     };
   }

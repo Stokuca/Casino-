@@ -1,4 +1,3 @@
-// backend/src/modules/common/enums.ts
 export enum TxType {
     DEPOSIT = 'DEPOSIT',
     WITHDRAWAL = 'WITHDRAWAL',

@@ -1,4 +1,3 @@
-// backend/src/modules/realtime/realtime.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -29,8 +28,6 @@ export class RealtimeGateway
   ) {}
 
   handleConnection(client: Socket) {
-    // može doći kao auth.token ili Authorization header;
-    // ali pošto koristimo httpOnly cookies, token je u cookie-ju.
     const rawAuth =
       (client.handshake.auth?.token as string | undefined) ||
       (client.handshake.headers.authorization as string | undefined);
@@ -39,7 +36,7 @@ export class RealtimeGateway
       rawAuth,
       this.jwt,
       this.cfg,
-      client.handshake.headers.cookie as string | undefined, // ⬅ cookie
+      client.handshake.headers.cookie as string | undefined,
     );
 
     if (!user) {
@@ -54,7 +51,6 @@ export class RealtimeGateway
 
   handleDisconnect(_client: Socket) {}
 
-  // --- Emit helpers ---
   emitPlayerBalance(playerId: string, balanceCents: string) {
     this.io.to(`player:${playerId}`).emit('balance:update', { balanceCents });
   }
@@ -63,7 +59,6 @@ export class RealtimeGateway
     this.io.to(`player:${playerId}`).emit('transaction:new', tx);
   }
 
-  // delta GGR = BET - PAYOUT za jednu ruku
   emitRevenueTick(ggrDeltaCents: string) {
     this.io.to('operator:all').emit('revenue:tick', {
       ggrDeltaCents,
@@ -71,7 +66,6 @@ export class RealtimeGateway
     });
   }
 
-  // signal za refetch metrika na operator dashboardu
   emitMetricsChanged(kind: 'revenue' | 'game' | 'player') {
     this.io.to('operator:all').emit('metrics:changed', {
       kind,

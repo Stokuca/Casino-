@@ -1,4 +1,3 @@
-// backend/src/modules/auth/auth.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
@@ -7,15 +6,15 @@ import { Player } from '../players/player.entity';
 import { Operator } from '../operators/operator.entity';
 import { Transaction } from '../transactions/transaction.entity';
 import { Game } from '../games/game.entity';
-import { CommonModule } from '../common/common.module'; // <— dodaj
+import { CommonModule } from '../common/common.module'; 
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Player, Operator, Transaction, Game]),
-    CommonModule, // <— koristi JwtModule iz CommonModule-a (isti secret!)
+    CommonModule, 
   ],
   providers: [AuthService],
   controllers: [AuthController],
-  exports: [AuthService], // <— više ne exportuješ JwtModule
+  exports: [AuthService],
 })
 export class AuthModule {}

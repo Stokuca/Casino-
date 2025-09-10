@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-// ⬇️ NEW
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -31,7 +30,6 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
       }),
     }),
 
-    // ⬇️ NEW: 100 zahteva / 60 sekundi po IP (po potrebi promeni)
     ThrottlerModule.forRoot([{ ttl: 60, limit: 100 }]),
 
     AuthModule,
@@ -43,7 +41,6 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     RealtimeModule
   ],
   providers: [
-    // ⬇️ NEW: globalni guard za rate limiting
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

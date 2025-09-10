@@ -1,4 +1,3 @@
-// backend/src/modules/operators/metrics.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ObjectLiteral, Repository, SelectQueryBuilder } from 'typeorm';
@@ -44,8 +43,6 @@ export class MetricsService {
     private readonly txRepo: Repository<Transaction>,
   ) {}
 
-  // ---------------- Revenue by period ----------------
-  // ---------------- Revenue by period ----------------
 async revenueByPeriod(opts: { granularity: Granularity; from?: Date; to?: Date }) {
   const { granularity, from, to } = opts;
   const trunc = dateTrunc(granularity);
@@ -80,9 +77,6 @@ async revenueByPeriod(opts: { granularity: Granularity; from?: Date; to?: Date }
   });
 }
 
-
-  // ---------------- Revenue by game (pie) ----------------
-  // ---------------- Revenue by game (pie) ----------------
 async revenueByGame(opts: { from?: Date; to?: Date }) {
   const { from, to } = opts;
 
@@ -129,8 +123,6 @@ async revenueByGame(opts: { from?: Date; to?: Date }) {
   });
 }
 
-
-    // ---------------- Active players (DISTINCT playerId with BET) ----------------
     async activePlayers(from?: Date, to?: Date) {
       const qb = this.txRepo.createQueryBuilder('t')
         .select('COUNT(DISTINCT t."playerId")', 'count')
@@ -141,7 +133,6 @@ async revenueByGame(opts: { from?: Date; to?: Date }) {
       return { count: Number(row?.count ?? 0) };
     }
   
-    // ---------------- #Bets KPI ----------------
     async betsCount(from?: Date, to?: Date) {
       const qb = this.txRepo.createQueryBuilder('t')
         .select(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'bets');
@@ -150,10 +141,6 @@ async revenueByGame(opts: { from?: Date; to?: Date }) {
       const row = await qb.getRawOne<{ bets: string }>();
       return { bets: Number(row?.bets ?? 0) };
     }
-  
-
-  // ---------------- Top profitable games (po GGR) ----------------
- // ...ostatak importa/klase
 
 async topProfitableGames(limit: number, from?: Date, to?: Date) {
   const qb = this.txRepo
@@ -162,7 +149,6 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
     .select('g.id', 'gameId')
     .addSelect('g.code', 'gameCode')
     .addSelect('g.name', 'gameName')
-    // ukupni BET/PAYOUT u centima
     .addSelect(
       `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
       'totalBet',
@@ -171,7 +157,6 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
       `SUM(CASE WHEN t.type = 'PAYOUT' THEN t."amountCents"::bigint ELSE 0 END)`,
       'totalPayout',
     )
-    // ✅ broj BET transakcija (#Bets)
     .addSelect(
       `COUNT(*) FILTER (WHERE t.type = 'BET')`,
       'betsCount',
@@ -210,15 +195,11 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
       totalBetCents: totalBet,
       totalPayoutCents: totalPayout,
       ggrCents: totalBet - totalPayout,
-      // ✅ prosleđujemo broj betova
       betsCount: Number(r.betsCount ?? 0),
     };
   });
 }
 
-  
-
-  // ---------------- Most popular games (#BET) ----------------
   async mostPopularGames(limit: number, from?: Date, to?: Date) {
     const qb = this.txRepo
       .createQueryBuilder('t')
@@ -226,9 +207,7 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
       .select('g.id', 'gameId')
       .addSelect('g.code', 'gameCode')
       .addSelect('g.name', 'gameName')
-      // #bets (popularnost)
       .addSelect(`COUNT(*) FILTER (WHERE t.type = 'BET')`, 'rounds')
-      // agregati za GGR
       .addSelect(
         `SUM(CASE WHEN t.type = 'BET' THEN t."amountCents"::bigint ELSE 0 END)`,
         'totalBet'
@@ -274,8 +253,6 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
     });
   }
   
-
-  // ---------------- Average bet per game ----------------
   async avgBetPerGame(from?: Date, to?: Date) {
     const qb = this.txRepo
       .createQueryBuilder('t')
@@ -304,7 +281,6 @@ async topProfitableGames(limit: number, from?: Date, to?: Date) {
     
   }
 
-  // ---------------- Actual vs Theoretical RTP per game ----------------
   async rtpPerGame(from?: Date, to?: Date) {
     const qb = this.txRepo
       .createQueryBuilder('t')

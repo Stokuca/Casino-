@@ -1,3 +1,4 @@
+// src/components/AppLayout.tsx
 import { Outlet, NavLink, Navigate, useNavigate } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../store";
@@ -5,10 +6,7 @@ import { logout } from "../store/slices/authSlice";
 import { logoutApi } from "../api/auth";
 
 type NavItem = { to: string; label: string; end?: boolean };
-
-function cx(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
-}
+const cx = (...p: Array<string | false | null | undefined>) => p.filter(Boolean).join(" ");
 
 export default function AppLayout() {
   const { role, isAuthed } = useAppSelector((s) => s.auth);
@@ -39,25 +37,27 @@ export default function AppLayout() {
   const navItems: NavItem[] = useMemo(() => {
     if (role === "player") {
       return [
-        { to: "/player", label: "Dashboard", end: true },
+        { to: "/player", label: "Dashboard", end: true },        // ✅ vraceno
         { to: "/player/transactions", label: "Transactions" },
       ];
     }
     if (role === "operator") {
       return [
-        { to: "/operator", label: "Dashboard", end: true },
+        { to: "/operator/dashboard", label: "Dashboard", end: true },
         { to: "/operator/players", label: "Players" },
       ];
     }
     return [];
   }, [role]);
 
+  const homeHref = role === "operator" ? "/operator/dashboard" : "/player"; // ✅ player home = /player
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="flex items-center justify-between px-6 h-14 bg-white border-b">
         <div
           className="font-semibold cursor-pointer select-none"
-          onClick={() => navigate(role === "operator" ? "/operator" : "/player")}
+          onClick={() => navigate(homeHref)}
           aria-label="Go to home"
         >
           Casino Platform

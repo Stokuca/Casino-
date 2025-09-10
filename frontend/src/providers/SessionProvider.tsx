@@ -20,7 +20,6 @@ export default function SessionProvider({ children }: { children: React.ReactNod
     return () => { mounted = false; };
   }, [dispatch]);
 
-  // dok ne znamo da li je ulogovan, prikaži kratki splash
   if (isAuthed === null) {
     return <div className="p-8 text-center text-sm text-gray-500">Loading session…</div>;
   }

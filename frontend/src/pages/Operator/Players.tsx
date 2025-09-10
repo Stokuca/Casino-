@@ -22,11 +22,9 @@ export default function OperatorPlayers() {
   const [limit] = useState(10);
   const [q, setQ] = useState("");
 
-  // ▼ NEW: date-range state (YYYY-MM-DD u UI)
   const [from, setFrom] = useState(dayjs().subtract(30, "day").format("YYYY-MM-DD"));
   const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
 
-  // ▼ NEW: konverzija u ISO za backend (>= from 00:00, <= to 23:59:59.999)
   const fromIso = useMemo(() => dayjs(from).startOf("day").toISOString(), [from]);
   const toIso   = useMemo(() => dayjs(to).endOf("day").toISOString(), [to]);
 
@@ -38,13 +36,11 @@ export default function OperatorPlayers() {
   const [leader, setLeader] = useState<Array<{ email: string; ggrCents: string; bets: number }>>([]);
   const [ldrErr, setLdrErr] = useState<string | null>(null);
 
-  // ⬇️ uključujemo from/to u params + pravi key za pretragu je "search"
   const params = useMemo(
     () => ({ page, limit, from: fromIso, to: toIso, ...(q && { search: q }) }),
     [page, limit, q, fromIso, toIso]
   );
 
-  // ---- Players table
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
@@ -57,7 +53,7 @@ export default function OperatorPlayers() {
 
         const items = (Array.isArray(data?.items) ? data.items : []).map((it: any) => ({
           ...it,
-          bets: Number(it?.betsCount ?? it?.bets ?? 0), // normalize
+          bets: Number(it?.betsCount ?? it?.bets ?? 0), 
         }));
 
         setRows(items);
@@ -73,7 +69,6 @@ export default function OperatorPlayers() {
     return () => ctrl.abort();
   }, [params]);
 
-  // ---- Leaderboard (Top 10) — koristimo ISTI opseg
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
@@ -96,7 +91,6 @@ export default function OperatorPlayers() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Players</h1>
 
-      {/* Leaderboard */}
       <div className="rounded-2xl border bg-white overflow-hidden">
         <div className="px-4 py-3 font-medium border-b">Top 10 high-rollers</div>
         <table className="min-w-full text-sm">
@@ -122,10 +116,8 @@ export default function OperatorPlayers() {
         </table>
       </div>
 
-      {/* Players table */}
       <div className="rounded-2xl border bg-white overflow-hidden">
         <div className="px-4 py-3 flex flex-wrap items-center gap-3 border-b">
-          {/* ▼ NEW: From/To filter */}
           <label className="text-sm text-gray-600">From</label>
           <input
             type="date"
@@ -141,7 +133,6 @@ export default function OperatorPlayers() {
             className="border rounded-lg p-2"
           />
 
-          {/* Search */}
           <input
             value={q}
             onChange={(e) => { setQ(e.target.value); setPage(1); }}

@@ -20,7 +20,6 @@ export default function Login() {
     <div className="mx-auto mt-16 max-w-sm rounded-xl bg-white p-6 shadow">
       <h1 className="mb-4 text-xl font-semibold">Login</h1>
 
-      {/* Toggle: Player / Operator */}
       <div className="mb-4 flex rounded-lg border overflow-hidden">
         <button
           type="button"

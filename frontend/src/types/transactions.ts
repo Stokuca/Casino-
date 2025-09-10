@@ -4,10 +4,10 @@ export type GameCode = 'slots' | 'roulette' | 'blackjack';
 export interface Transaction {
   id: string;
   type: TxType;
-  amountCents: string;        // broj u centima iz back-a
-  balanceAfterCents: string;  // broj u centima
-  game: GameCode | null;      // null za depozit/withdraw
-  createdAt: string;          // ISO
+  amountCents: string;        
+  balanceAfterCents: string;  
+  game: GameCode | null;      
+  createdAt: string;          
 }
 
 export interface Paginated<T> {

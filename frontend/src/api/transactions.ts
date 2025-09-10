@@ -17,8 +17,8 @@ export type TxQuery = {
   limit?: number | string;
   type?: TxType;
   game?: GameKey;
-  from?: string; // YYYY-MM-DD ili ISO
-  to?: string;   // YYYY-MM-DD ili ISO
+  from?: string; 
+  to?: string;  
 };
 
 export type TxResponse = {
@@ -38,7 +38,7 @@ export async function getMyTransactions(q: TxQuery = {}, signal?: AbortSignal): 
   const limit = Number(q.limit ?? 20);
 
   const params = {
-    page: String(page),     // stringify za DTO koji očekuje string
+    page: String(page),  
     limit: String(limit),
     type: q.type,
     game: q.game,

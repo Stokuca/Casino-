@@ -23,7 +23,7 @@ export default function Register() {
         validationSchema={Schema}
         onSubmit={async (values, helpers) => {
           try {
-            const session = await register(values); // server postavlja httpOnly cookie; vraća {role, user}
+            const session = await register(values);
             dispatch(setSession(session));
             navigate(session.role === "operator" ? "/operator" : "/player", { replace: true });
           } catch (err: any) {

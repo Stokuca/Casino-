@@ -1,4 +1,3 @@
-// src/pages/Player/Transactions.tsx
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { getMyTransactions, type Tx, type TxType, type GameKey } from "../../api/transactions";
@@ -54,7 +53,6 @@ export default function PlayerTransactions() {
         setTotal(d.total);
       })
       .catch((e: any) => {
-        // ako je otkazano, ignorišemo grešku
         if (e?.code === "ERR_CANCELED" || e?.name === "CanceledError" || e?.name === "AbortError") {
           return;
         }
@@ -64,7 +62,7 @@ export default function PlayerTransactions() {
         if (!ctrl.signal.aborted) setLoading(false);
       });
   
-    return () => ctrl.abort(); // otkazi prethodni request na promenu filtera/strane
+    return () => ctrl.abort(); 
   }, [debounced]);
   
   
@@ -77,7 +75,6 @@ export default function PlayerTransactions() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Transactions</h1>
 
-      {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <select
           className="border rounded-lg p-2"
@@ -120,7 +117,6 @@ export default function PlayerTransactions() {
         </button>
       </div>
 
-      {/* Table */}
       <div className="rounded-2xl border bg-white overflow-hidden">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
@@ -156,7 +152,6 @@ export default function PlayerTransactions() {
         </table>
       </div>
 
-      {/* Paginator */}
       <div className="flex justify-end gap-2">
         <button
           className="rounded border px-3 py-1 disabled:opacity-50"

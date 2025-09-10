@@ -5,10 +5,9 @@ import { logout } from "../store/slices/authSlice";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
-  withCredentials: true, // cookie auth
+  withCredentials: true,
 });
 
-// NEMA Authorization headera – sve ide kroz httpOnly cookies
 
 let isRefreshing = false;
 let queue: Array<() => void> = [];
@@ -22,14 +21,12 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // spreči beskonačnu petlju
     if (original._retry) {
       store.dispatch(logout());
       return Promise.reject(error);
     }
     original._retry = true;
 
-    // single-flight refresh
     if (isRefreshing) {
       await new Promise<void>((resolve) => queue.push(resolve));
     } else {

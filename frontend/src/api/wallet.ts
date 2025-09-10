@@ -2,7 +2,6 @@ import { api } from "./http";
 
 export type Balance = { balanceCents: number };
 
-/** $ -> cents string (pozitivan ceo broj) */
 const usdToCentsStr = (x: number | string) =>
   String(Math.max(0, Math.floor((Number(x) || 0) * 100)));
 
@@ -20,13 +19,13 @@ export async function getBalance(signal?: AbortSignal): Promise<Balance> {
 }
 
 export async function deposit(amountUsd: number | string, signal?: AbortSignal) {
-  const body = { amountCents: usdToCentsStr(amountUsd) };  // ⬅️ *USD → cents*
+  const body = { amountCents: usdToCentsStr(amountUsd) }; 
   const { data } = await api.post("/wallet/deposit", body, { signal });
   return { balanceCents: Number(data?.balanceCents ?? 0) };
 }
 
 export async function withdraw(amountUsd: number | string, signal?: AbortSignal) {
-  const body = { amountCents: usdToCentsStr(amountUsd) };  // ⬅️ *USD → cents*
+  const body = { amountCents: usdToCentsStr(amountUsd) };  
   const { data } = await api.post("/wallet/withdraw", body, { signal });
   return { balanceCents: Number(data?.balanceCents ?? 0) };
 }

@@ -3,13 +3,12 @@ import { api } from "./http";
 export type GameCode = "slots" | "roulette" | "blackjack";
 export type Outcome = "WIN" | "LOSS";
 
-/** $ -> cents string (pozitivan ceo broj) */
 const usdToCentsStr = (x: number | string) =>
   String(Math.max(0, Math.floor((Number(x) || 0) * 100)));
 
 export type PlayBody = {
   gameCode: GameCode;
-  amountCents: string;  // centi kao string (što backend očekuje)
+  amountCents: string;  
   outcome?: Outcome;
 };
 
@@ -20,13 +19,13 @@ export async function playBetRaw(body: PlayBody, signal?: AbortSignal) {
 
 export async function placeBet(
   gameCode: GameCode,
-  betUsd: number | string,   // UI unosi u dolarima
+  betUsd: number | string,
   outcome?: Outcome,
   signal?: AbortSignal
 ) {
   const payload: PlayBody = {
     gameCode,
-    amountCents: usdToCentsStr(betUsd),  // ⬅️ *USD → cents*
+    amountCents: usdToCentsStr(betUsd),
     ...(outcome ? { outcome } : {}),
   };
   const { data } = await api.post("/bets/play", payload, { signal });
@@ -38,5 +37,4 @@ export async function placeBet(
   };
 }
 
-// zadrži postojeće import-e
 export { placeBet as playBet };

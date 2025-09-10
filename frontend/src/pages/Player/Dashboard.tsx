@@ -15,7 +15,6 @@ const fromCents = (cents: number | string) =>
   (Number(cents) / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
 
 export default function PlayerDashboard() {
-  // ⬅ balanceCents je number (u centima)
   const [balanceCents, setBalanceCents] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -25,19 +24,17 @@ export default function PlayerDashboard() {
 
   const [game, setGame] = useState<GameKey>("slots");
   const [bet, setBet] = useState("10");
-  // prikazno stanje, mapira se u "WIN" | "LOSS"
   const [outcome, setOutcome] = useState<"win" | "loss">("win");
 
   useEffect(() => {
     const offBal = onPlayerBalance((cents) => setBalanceCents(cents));
   
-    // WS: IGNORIŠEMO BET i PAYOUT da ne prelepe poruku posle playBet-a
     const offTx = onPlayerTx((tx) => {
       const type = (tx as any)?.type as string | undefined;
       if (type === "BET" || type === "PAYOUT") return;
   
       const amount = Number((tx as any)?.amountCents ?? 0);
-      const signed = type === "WITHDRAW" ? -amount : amount; // deposit +, withdraw -
+      const signed = type === "WITHDRAW" ? -amount : amount;
       const nice = (signed / 100).toLocaleString("en-US", {
         style: "currency",
         currency: "USD",

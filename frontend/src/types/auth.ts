@@ -6,7 +6,6 @@ export interface User {
   createdAt: string;
 }
 
-/** Jedinstveni oblik sesije koji backend vraća */
 export interface Session {
   role: Role;
   user: User;

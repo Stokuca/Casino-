@@ -36,28 +36,24 @@ function useAbortable<T>(fn: (signal: AbortSignal) => Promise<T>, deps: any[]) {
       })
       .finally(() => !ctrl.signal.aborted && setLoading(false));
     return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return { data, loading, err };
 }
 
 export default function OperatorDashboard() {
-  // date-input drži 'YYYY-MM-DD'
   const [from, setFrom] = useState(dayjs().subtract(6, "day").format("YYYY-MM-DD"));
   const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
   const [gran, setGran] = useState<Granularity>("day");
 
   const [tick, setTick] = useState(0);
 
-  // WS: svaki put kada server kaže da su se metrike promenile, refetch
   useEffect(() => {
     const off1 = onMetricsChanged(() => setTick((t) => t + 1));
     const off2 = onRevenueTick(() => setTick((t) => t + 1));
     return () => { off1(); off2(); };
   }, []);
 
-  // Backend: većina endpointa traži ISO, revenue plain YYYY-MM-DD
   const paramsIso = useMemo(() => ({
     from: dayjs(from).startOf("day").toISOString(),
     to: dayjs(to).endOf("day").toISOString(),
@@ -68,7 +64,6 @@ export default function OperatorDashboard() {
     to: dayjs(to).format("YYYY-MM-DD"),
   }), [from, to]);
 
-  // ----- Queries -----
   const seriesQ = useAbortable(
     (signal) => revenue({ ...paramsPlain, granularity: gran }, signal),
     [gran, paramsPlain.from, paramsPlain.to, tick]
@@ -109,7 +104,6 @@ export default function OperatorDashboard() {
     [paramsIso.from, paramsIso.to, tick]
   );
 
-  // ----- Derivati za KPI i prikaz -----
   const ggrTotalCents = Number((seriesQ.data as any)?.totalGgrCents ?? 0);
   const betsTotal = Number((betsQ.data as any)?.count ?? 0);
 
@@ -131,7 +125,6 @@ export default function OperatorDashboard() {
     .map((g: any) => ({ name: g.game, value: Number(g.ggrCents ?? 0) / 100 }))
     .filter((d) => d.value > 0);
 
-  // --- RTP mapiranje i spajanje sa tabelama ---
   const rtpMap = useMemo(() => {
     const m = new Map<string, { act: number; th: number }>();
     for (const r of (rtpQ.data ?? [])) {
@@ -166,7 +159,6 @@ export default function OperatorDashboard() {
     seriesQ.loading || byGameQ.loading || profQ.loading || popularQ.loading ||
     avgBetQ.loading || activeQ.loading || betsQ.loading || rtpQ.loading;
 
-  // debug logovi (po želji)
   useEffect(() => { console.log('[WS] revenue:tick or metrics:changed -> tick=', tick); }, [tick]);
   useEffect(() => { console.log('revenue()', seriesQ.data); }, [seriesQ.data]);
   useEffect(() => { console.log('revenueByGame()', byGameQ.data); }, [byGameQ.data]);
@@ -179,7 +171,6 @@ export default function OperatorDashboard() {
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Operator Dashboard</h1>
 
-      {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <select className="border rounded-lg p-2" value={gran} onChange={(e) => setGran(e.target.value as Granularity)}>
           <option value="day">Daily</option>
@@ -191,7 +182,6 @@ export default function OperatorDashboard() {
         <button className="border rounded-lg p-2 hover:bg-gray-50" onClick={reset}>Reset</button>
       </div>
 
-      {/* KPI */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard label="GGR" value={fmtUSD(ggrTotalCents)} loading={loadingAny} />
         <KpiCard label="Bets" value={betsTotal.toString()} loading={loadingAny} />
@@ -199,7 +189,6 @@ export default function OperatorDashboard() {
         <KpiCard label="Avg bet" value={fmtUSD(avgBetCents)} loading={loadingAny} />
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-2xl border p-4 bg-white">
           <div className="mb-2 font-medium">Revenue by {gran}</div>

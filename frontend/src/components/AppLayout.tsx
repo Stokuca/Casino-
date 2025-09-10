@@ -1,4 +1,3 @@
-// src/components/AppLayout.tsx
 import { Outlet, NavLink, Navigate, useNavigate } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../store";

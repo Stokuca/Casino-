@@ -1,4 +1,3 @@
-// src/router.tsx
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -15,7 +14,6 @@ const OperatorPlayers = lazy(() => import("./pages/Operator/Players"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function RoleHome() {
-  // tip: ako imaš RootState, zameni any sa RootState
   const role = useSelector((s: any) => s.auth.role);
   return <Navigate to={role === "operator" ? "/operator" : "/player"} replace />;
 }
@@ -25,12 +23,10 @@ export default function Router() {
     <BrowserRouter>
       <Suspense fallback={<div className="p-8 text-center">Loading…</div>}>
         <Routes>
-          {/* Public */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Protected + layout */}
           <Route
             element={
               <ProtectedRoute>
@@ -38,10 +34,8 @@ export default function Router() {
               </ProtectedRoute>
             }
           >
-            {/* Centralizovan ulaz za ulogovane — vodi na player/operator */}
             <Route path="/app" element={<RoleHome />} />
 
-            {/* Player */}
             <Route
               path="/player"
               element={
@@ -59,7 +53,6 @@ export default function Router() {
               }
             />
 
-            {/* Operator */}
             <Route
               path="/operator"
               element={
@@ -77,7 +70,6 @@ export default function Router() {
               }
             />
 
-            {/* 404 u okviru layout-a */}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

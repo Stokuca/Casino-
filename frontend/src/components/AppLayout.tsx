@@ -1,4 +1,3 @@
-// src/components/AppLayout.tsx
 import { Outlet, NavLink, Navigate, useNavigate } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../store";
@@ -37,7 +36,7 @@ export default function AppLayout() {
   const navItems: NavItem[] = useMemo(() => {
     if (role === "player") {
       return [
-        { to: "/player", label: "Dashboard", end: true },        // ✅ vraceno
+        { to: "/player", label: "Dashboard", end: true }, 
         { to: "/player/transactions", label: "Transactions" },
       ];
     }
@@ -50,7 +49,7 @@ export default function AppLayout() {
     return [];
   }, [role]);
 
-  const homeHref = role === "operator" ? "/operator/dashboard" : "/player"; // ✅ player home = /player
+  const homeHref = role === "operator" ? "/operator/dashboard" : "/player";
 
   return (
     <div className="min-h-screen bg-gray-50">

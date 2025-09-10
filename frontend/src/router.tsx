@@ -1,4 +1,3 @@
-// src/Router.tsx
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -8,7 +7,7 @@ import RoleRoute from "./components/RoleRoute";
 
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
-const PlayerDashboard = lazy(() => import("./pages/Player/Dashboard"));   // ✅ vraceno
+const PlayerDashboard = lazy(() => import("./pages/Player/Dashboard"));
 const PlayerTransactions = lazy(() => import("./pages/Player/Transactions"));
 const OperatorDashboard = lazy(() => import("./pages/Operator/Dashboard"));
 const OperatorPlayers = lazy(() => import("./pages/Operator/Players"));
@@ -19,7 +18,7 @@ function HomeRedirect() {
   if (!isAuthed) return <Navigate to="/login" replace />;
   return (
     <Navigate
-      to={role === "operator" ? "/operator/dashboard" : "/player"} // ✅ player ide na /player (dashboard)
+      to={role === "operator" ? "/operator/dashboard" : "/player"}
       replace
     />
   );
@@ -30,12 +29,9 @@ export default function Router() {
     <BrowserRouter>
       <Suspense fallback={<div className="p-8 text-center">Loading…</div>}>
         <Routes>
-          {/* Public */}
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
-          {/* Protected shell */}
           <Route
             element={
               <ProtectedRoute>
@@ -43,15 +39,12 @@ export default function Router() {
               </ProtectedRoute>
             }
           >
-            {/* Role-based home (ako koristiš /app) */}
             <Route path="/app" element={<HomeRedirect />} />
-
-            {/* PLAYER */}
             <Route
               path="/player"
               element={
                 <RoleRoute allow="player">
-                  <PlayerDashboard />                         {/* ✅ dashboard kao početna */}
+                  <PlayerDashboard />                         
                 </RoleRoute>
               }
             />
@@ -63,8 +56,6 @@ export default function Router() {
                 </RoleRoute>
               }
             />
-
-            {/* OPERATOR */}
             <Route
               path="/operator/dashboard"
               element={
@@ -85,8 +76,6 @@ export default function Router() {
                 </RoleRoute>
               }
             />
-
-            {/* Fallback bez logout-a */}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
